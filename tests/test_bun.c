@@ -1,104 +1,450 @@
+// -----------------------------------------------------------------------------
+// test_bun.c - libcheck unit tests for the Group 22 bun parser.
+//
+// Coverage:
+//   - Output helpers from bun_output.{c,h}      (complete - passes now)
+//   - Overflow-safe arithmetic helpers          (complete - passes now)
+//   - Header parsing via bun_parse_header()     (uses valid + invalid fixtures)
+//   - Asset parsing via bun_parse_assets()      (uses valid fixtures)
+//
+// The header/asset tests will *fail* against the Day-0 skeleton in bun_parse.c;
+// that is expected. As Members 1-3 implement the parser, previously red
+// tests will go green. See tests/run_e2e.sh for exit-code-only CLI coverage
+// that complements this file.
+//
+// Conventions:
+//   - Each behaviour gets its own START_TEST block (no shared state).
+//   - Fixtures are looked up relative to the project root, which is the CWD
+//     when `make test` is invoked (see the Makefile rule).
+//   - Test names are test_<area>_<case>.
+//
+// Author: Group 22, Member 4.
+// -----------------------------------------------------------------------------
+
 #include "../bun.h"
+#include "../bun_output.h"
 
 #include <check.h>
 
-#include <stdlib.h>
-#include <stdarg.h>
-#include <string.h>
 #include <errno.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-// Helper: terminate abnormally, after printing a message to stderr
-void die(const char *fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
+// -----------------------------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------------------------
 
-  fprintf(stderr, "fatal error: ");
-  vfprintf(stderr, fmt, args);
-  fprintf(stderr, "\n");
-
-  va_end(args);
-
-  abort();
+static void die(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    fprintf(stderr, "fatal error: ");
+    vfprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    va_end(ap);
+    abort();
 }
 
-
-// Helper: open a test fixture by name, relative to the tests/ directory.
-static const char *fixture(const char *filename) {
-    // For simplicity, tests assume they are run from the project root, and
-    // test BUN files live in tests/fixtures/{valid,invalid}. Adjust if needed.
-    static char path[256];
-    int res = snprintf(path, sizeof(path), "tests/fixtures/%s", filename);
-    if (res < 0) {
-      die("snprintf failed: %s", strerror(errno));
-    }
-    if ((size_t) res > sizeof(path)) {
-      die("filename '%s' too big for buffer (would write %d bytes to %zu-size buffer)",
-          filename, res, sizeof(path));
+// Resolve a fixture path relative to the project root.
+static const char *fixture(const char *rel) {
+    static char path[512];
+    int r = snprintf(path, sizeof(path), "tests/fixtures/%s", rel);
+    if (r < 0 || (size_t)r >= sizeof(path)) {
+        die("fixture path too long: %s", rel);
     }
     return path;
 }
 
-// Example test suite: header parsing
-
-START_TEST(test_valid_minimal) {
+// Open a fixture and assert bun_open succeeded. Returns the context.
+static BunParseContext open_fixture(const char *rel) {
     BunParseContext ctx = {0};
-    BunHeader header    = {0};
+    bun_result_t r = bun_open(fixture(rel), &ctx);
+    ck_assert_msg(r == BUN_OK,
+                  "bun_open(%s) returned %d (expected BUN_OK)", rel, r);
+    return ctx;
+}
 
-    bun_result_t r = bun_open(fixture("valid/01-empty.bun"), &ctx);
-    ck_assert_int_eq(r, BUN_OK);
+// -----------------------------------------------------------------------------
+// Output helpers: is_printable_ascii
+// -----------------------------------------------------------------------------
 
-    r = bun_parse_header(&ctx, &header);
-    ck_assert_int_eq(r, BUN_OK);
-    ck_assert_uint_eq(header.magic, BUN_MAGIC);
-    ck_assert_uint_eq(header.version_major, 1);
-    ck_assert_uint_eq(header.version_minor, 0);
+START_TEST(test_output_printable_empty) {
+    ck_assert(bun_is_printable_ascii(NULL, 0));
+    ck_assert(bun_is_printable_ascii((const unsigned char*)"", 0));
+}
+END_TEST
 
+START_TEST(test_output_printable_plain_text) {
+    const unsigned char *s = (const unsigned char *)"Hello, world!\n";
+    ck_assert(bun_is_printable_ascii(s, strlen((const char *)s)));
+}
+END_TEST
+
+START_TEST(test_output_printable_rejects_high_bytes) {
+    unsigned char s[] = { 0x41, 0xFF, 0x42 };
+    ck_assert(!bun_is_printable_ascii(s, sizeof(s)));
+}
+END_TEST
+
+START_TEST(test_output_printable_rejects_nul) {
+    unsigned char s[] = { 0x41, 0x00, 0x42 };
+    ck_assert(!bun_is_printable_ascii(s, sizeof(s)));
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Output helpers: name_is_printable (stricter: no whitespace, non-empty)
+// -----------------------------------------------------------------------------
+
+START_TEST(test_output_name_rejects_empty) {
+    ck_assert(!bun_name_is_printable(NULL, 0));
+    ck_assert(!bun_name_is_printable((const unsigned char *)"", 0));
+}
+END_TEST
+
+START_TEST(test_output_name_rejects_tab) {
+    const unsigned char s[] = { 'a', '\t', 'b' };
+    ck_assert(!bun_name_is_printable(s, sizeof(s)));
+}
+END_TEST
+
+START_TEST(test_output_name_accepts_all_printable) {
+    // 0x20-0x7E range
+    unsigned char s[0x7F - 0x20];
+    for (size_t i = 0; i < sizeof(s); ++i) s[i] = (unsigned char)(0x20 + i);
+    ck_assert(bun_name_is_printable(s, sizeof(s)));
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Output helpers: escaped printing
+// -----------------------------------------------------------------------------
+
+START_TEST(test_output_print_escaped_plain) {
+    char buf[64] = {0};
+    FILE *f = fmemopen(buf, sizeof(buf), "w");
+    ck_assert_ptr_nonnull(f);
+    bun_print_escaped(f, (const unsigned char *)"hi", 2, 60);
+    fflush(f);
+    fclose(f);
+    ck_assert_str_eq(buf, "hi");
+}
+END_TEST
+
+START_TEST(test_output_print_escaped_hex) {
+    char buf[64] = {0};
+    FILE *f = fmemopen(buf, sizeof(buf), "w");
+    ck_assert_ptr_nonnull(f);
+    const unsigned char src[] = { 'a', 0x01, 'b' };
+    bun_print_escaped(f, src, 3, 60);
+    fflush(f);
+    fclose(f);
+    ck_assert_str_eq(buf, "a\\x01b");
+}
+END_TEST
+
+START_TEST(test_output_print_escaped_truncates) {
+    char buf[64] = {0};
+    FILE *f = fmemopen(buf, sizeof(buf), "w");
+    ck_assert_ptr_nonnull(f);
+    const unsigned char src[] = "0123456789";
+    bun_print_escaped(f, src, 10, 4);
+    fflush(f);
+    fclose(f);
+    ck_assert_str_eq(buf, "0123...");
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Overflow helpers
+// -----------------------------------------------------------------------------
+
+START_TEST(test_overflow_add_ok) {
+    uint64_t out = 0;
+    ck_assert(bun_u64_add(1, 2, &out));
+    ck_assert_uint_eq(out, 3);
+}
+END_TEST
+
+START_TEST(test_overflow_add_detects) {
+    uint64_t out = 0;
+    ck_assert(!bun_u64_add(UINT64_MAX, 1, &out));
+    ck_assert_uint_eq(out, UINT64_MAX);
+}
+END_TEST
+
+START_TEST(test_overflow_mul_detects) {
+    uint64_t out = 0;
+    ck_assert(!bun_u64_mul(UINT64_MAX, 2, &out));
+    ck_assert_uint_eq(out, UINT64_MAX);
+}
+END_TEST
+
+START_TEST(test_overflow_ranges_disjoint) {
+    // [0,10) vs [10,20)  -> disjoint (touching edges don't overlap)
+    ck_assert(bun_ranges_disjoint(0, 10, 10, 10));
+    // [0,10) vs [9,20)   -> overlap
+    ck_assert(!bun_ranges_disjoint(0, 10, 9, 10));
+    // [0,0) vs [0,10)    -> zero-length is disjoint from anything
+    ck_assert(bun_ranges_disjoint(0, 0, 0, 10));
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Header parsing - valid fixtures
+// (These require Member 1's bun_parse_header() to be implemented.)
+// -----------------------------------------------------------------------------
+
+START_TEST(test_header_valid_empty) {
+    BunParseContext ctx = open_fixture("valid/01-empty.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_OK);
+    ck_assert_uint_eq(h.magic, BUN_MAGIC);
+    ck_assert_uint_eq(h.version_major, 1);
+    ck_assert_uint_eq(h.version_minor, 0);
+    ck_assert_uint_eq(h.asset_count, 0);
     bun_close(&ctx);
 }
 END_TEST
 
-START_TEST(test_bad_magic) {
-    BunParseContext ctx = {0};
-    BunHeader header    = {0};
+START_TEST(test_header_valid_single_uncompressed) {
+    BunParseContext ctx = open_fixture("valid/02-single-uncompressed.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_OK);
+    ck_assert_uint_eq(h.asset_count, 1);
+    bun_close(&ctx);
+}
+END_TEST
 
-    bun_result_t r = bun_open(fixture("invalid/01-bad-magic.bun"), &ctx);
-    ck_assert_int_eq(r, BUN_OK);
+START_TEST(test_header_valid_reserved_ignored) {
+    // reserved field is non-zero; spec says parser must still accept.
+    BunParseContext ctx = open_fixture("valid/08-reserved-nonzero.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_OK);
+    bun_close(&ctx);
+}
+END_TEST
 
-    r = bun_parse_header(&ctx, &header);
+// -----------------------------------------------------------------------------
+// Header parsing - malformed / unsupported
+// -----------------------------------------------------------------------------
+
+START_TEST(test_header_bad_magic_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/01-bad-magic.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_header_truncated_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/02-truncated-header.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_header_unaligned_offset_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/04-unaligned-offset.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_header_bad_version_major_is_unsupported) {
+    BunParseContext ctx = open_fixture("invalid/20-bad-version-major.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_UNSUPPORTED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_header_bad_version_minor_is_unsupported) {
+    BunParseContext ctx = open_fixture("invalid/21-bad-version-minor.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_UNSUPPORTED);
+    bun_close(&ctx);
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Asset parsing - valid fixtures
+// (Depend on Member 2's bun_parse_assets() implementation.)
+// -----------------------------------------------------------------------------
+
+START_TEST(test_assets_valid_multiple) {
+    BunParseContext ctx = open_fixture("valid/03-multiple-assets.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_OK);
+    ck_assert_int_eq(bun_parse_assets(&ctx, &h), BUN_OK);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_valid_rle) {
+    BunParseContext ctx = open_fixture("valid/04-rle-compressed.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_OK);
+    ck_assert_int_eq(bun_parse_assets(&ctx, &h), BUN_OK);
+    bun_close(&ctx);
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Asset parsing - malformed / unsupported
+// -----------------------------------------------------------------------------
+
+START_TEST(test_assets_overlap_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/06-overlapping-sections.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) {
+        r = bun_parse_assets(&ctx, &h);
+    }
     ck_assert_int_eq(r, BUN_MALFORMED);
-
     bun_close(&ctx);
 }
 END_TEST
 
-START_TEST(test_unsupported_version) {
-    BunParseContext ctx = {0};
-    BunHeader header    = {0};
+START_TEST(test_assets_name_oob_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/08-name-out-of-string-table.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
 
-    bun_result_t r = bun_open(fixture("invalid/02-bad-version.bun"), &ctx);
-    ck_assert_int_eq(r, BUN_OK);
+START_TEST(test_assets_nonprintable_name_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/10-nonprintable-name.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
 
-    r = bun_parse_header(&ctx, &header);
+START_TEST(test_assets_rle_odd_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/12-rle-odd-size.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_rle_zero_count_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/13-rle-zero-count.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_zlib_is_unsupported) {
+    BunParseContext ctx = open_fixture("invalid/22-compression-zlib.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
     ck_assert_int_eq(r, BUN_UNSUPPORTED);
-
     bun_close(&ctx);
 }
 END_TEST
 
-// Assemble a test suite from our tests
+START_TEST(test_assets_checksum_nonzero_is_unsupported) {
+    BunParseContext ctx = open_fixture("invalid/24-checksum-nonzero.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_UNSUPPORTED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_unknown_flag_is_unsupported) {
+    BunParseContext ctx = open_fixture("invalid/25-unknown-flag.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_UNSUPPORTED);
+    bun_close(&ctx);
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// I/O path - missing file
+// -----------------------------------------------------------------------------
+
+START_TEST(test_io_missing_file) {
+    BunParseContext ctx = {0};
+    bun_result_t r = bun_open("tests/fixtures/does-not-exist.bun", &ctx);
+    ck_assert_int_eq(r, BUN_ERR_IO);
+}
+END_TEST
+
+// -----------------------------------------------------------------------------
+// Suite assembly
+// -----------------------------------------------------------------------------
 
 static Suite *bun_suite(void) {
-    Suite *s = suite_create("bun-suite");
+    Suite *s = suite_create("bun");
 
-    // Note that "TCase" is more like a sub-suite than a single test case
-    TCase *tc_header = tcase_create("header-tests");
-    tcase_add_test(tc_header, test_valid_minimal);
-    tcase_add_test(tc_header, test_bad_magic);
-    tcase_add_test(tc_header, test_unsupported_version);
-    suite_add_tcase(s, tc_header);
+    TCase *tc_out = tcase_create("output-helpers");
+    tcase_add_test(tc_out, test_output_printable_empty);
+    tcase_add_test(tc_out, test_output_printable_plain_text);
+    tcase_add_test(tc_out, test_output_printable_rejects_high_bytes);
+    tcase_add_test(tc_out, test_output_printable_rejects_nul);
+    tcase_add_test(tc_out, test_output_name_rejects_empty);
+    tcase_add_test(tc_out, test_output_name_rejects_tab);
+    tcase_add_test(tc_out, test_output_name_accepts_all_printable);
+    tcase_add_test(tc_out, test_output_print_escaped_plain);
+    tcase_add_test(tc_out, test_output_print_escaped_hex);
+    tcase_add_test(tc_out, test_output_print_escaped_truncates);
+    suite_add_tcase(s, tc_out);
 
-    // TODO: add further test cases and TCases (e.g. "assets", "compression")
+    TCase *tc_ov = tcase_create("overflow-helpers");
+    tcase_add_test(tc_ov, test_overflow_add_ok);
+    tcase_add_test(tc_ov, test_overflow_add_detects);
+    tcase_add_test(tc_ov, test_overflow_mul_detects);
+    tcase_add_test(tc_ov, test_overflow_ranges_disjoint);
+    suite_add_tcase(s, tc_ov);
+
+    TCase *tc_hdr = tcase_create("header");
+    tcase_add_test(tc_hdr, test_header_valid_empty);
+    tcase_add_test(tc_hdr, test_header_valid_single_uncompressed);
+    tcase_add_test(tc_hdr, test_header_valid_reserved_ignored);
+    tcase_add_test(tc_hdr, test_header_bad_magic_is_malformed);
+    tcase_add_test(tc_hdr, test_header_truncated_is_malformed);
+    tcase_add_test(tc_hdr, test_header_unaligned_offset_is_malformed);
+    tcase_add_test(tc_hdr, test_header_bad_version_major_is_unsupported);
+    tcase_add_test(tc_hdr, test_header_bad_version_minor_is_unsupported);
+    suite_add_tcase(s, tc_hdr);
+
+    TCase *tc_a = tcase_create("assets");
+    tcase_add_test(tc_a, test_assets_valid_multiple);
+    tcase_add_test(tc_a, test_assets_valid_rle);
+    tcase_add_test(tc_a, test_assets_overlap_is_malformed);
+    tcase_add_test(tc_a, test_assets_name_oob_is_malformed);
+    tcase_add_test(tc_a, test_assets_nonprintable_name_is_malformed);
+    tcase_add_test(tc_a, test_assets_rle_odd_is_malformed);
+    tcase_add_test(tc_a, test_assets_rle_zero_count_is_malformed);
+    tcase_add_test(tc_a, test_assets_zlib_is_unsupported);
+    tcase_add_test(tc_a, test_assets_checksum_nonzero_is_unsupported);
+    tcase_add_test(tc_a, test_assets_unknown_flag_is_unsupported);
+    suite_add_tcase(s, tc_a);
+
+    TCase *tc_io = tcase_create("io");
+    tcase_add_test(tc_io, test_io_missing_file);
+    suite_add_tcase(s, tc_io);
 
     return s;
 }
@@ -107,12 +453,9 @@ int main(void) {
     Suite   *s  = bun_suite();
     SRunner *sr = srunner_create(s);
 
-    // see https://libcheck.github.io/check/doc/check_html/check_3.html#SRunner-Output for different output options.
-    // e.g. pass CK_VERBOSE if you want to see successes as well as failures.
+    // CK_NORMAL: only failures printed. Use CK_VERBOSE while developing.
     srunner_run_all(sr, CK_NORMAL);
     int failed = srunner_ntests_failed(sr);
     srunner_free(sr);
-
     return failed == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-

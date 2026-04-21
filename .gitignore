@@ -53,3 +53,17 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Local probe / scratch files (leftover from a sandbox run; cannot be
+# unlinked from the Linux mount on Windows - the user should delete them
+# manually from File Explorer before committing, they are ignored here
+# so a stray `git add .` doesn't grab them).
+_probe*
+__pycache__/
+*.pyc
+
+# Build artefacts
+bun_parser
+tests/test_runner
+tests/fixtures/large/
+report/report.pdf
