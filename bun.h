@@ -79,9 +79,17 @@ typedef struct {
 // You will likely want to add fields to it as your implementation grows.
 //
 
+#define MAX_ERRORS 100
+#define MAX_ERROR_LEN 256
+
 typedef struct {
     FILE   *file;           // open file handle
     long    file_size;      // total file size in bytes
+
+    // error handling
+    char   errors[MAX_ERRORS][MAX_ERROR_LEN];
+    int    error_count;
+    bun_result_t worst_error;
     // add further fields here as needed
 } BunParseContext;
 
