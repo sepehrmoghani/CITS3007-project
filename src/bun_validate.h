@@ -3,6 +3,7 @@
 
 #include "bun.h"
 
+
 /**
  * Validate basic header fields.
  *
@@ -13,7 +14,8 @@
  * - magic number matches BUN_MAGIC
  * - version is supported (1.0)
  */
-bun_result_t validate_header_basic(const BunHeader *h);
+bun_result_t validate_header_basic(BunParseContext *ctx, const BunHeader *h);
+
 
 /**
  * Validate header offsets and section layout.
@@ -27,7 +29,8 @@ bun_result_t validate_header_basic(const BunHeader *h);
  * - sections lie fully within file bounds
  * - no sections overlap
  */
-bun_result_t validate_header_offsets(const BunHeader *h, long file_size);
+bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h);
+
 
 /**
  * Validate a single asset record.
@@ -43,10 +46,8 @@ bun_result_t validate_header_offsets(const BunHeader *h, long file_size);
  * - flags contain only supported bits
  * - checksum handling rules
  */
-bun_result_t validate_asset_record(
-    const BunAssetRecord *rec,
-    const BunHeader *header
-);
+bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *rec, const BunHeader *header, u32 index);
+
 
 /**
  * Validate an asset name from the string table.
@@ -60,11 +61,8 @@ bun_result_t validate_asset_record(
  * - name_length > 0
  * - characters are printable ASCII (0x20–0x7E)
  */
-bun_result_t validate_asset_name(
-    BunParseContext *ctx,
-    const BunHeader *header,
-    const BunAssetRecord *rec
-);
+bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, const BunAssetRecord *rec, u32 index);
+
 
 /**
  * Validate compression-related fields in an asset record.
@@ -77,6 +75,6 @@ bun_result_t validate_asset_name(
  * - RLE data size is even
  * - uncompressed_size rules are satisfied
  */
-bun_result_t validate_compression(const BunAssetRecord *rec);
+bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header, const BunAssetRecord *rec, u32 index);
 
-#endif // BUN_VALIDATE_H
+#endif

@@ -1,6 +1,8 @@
 #ifndef BUN_UTILS_H
 #define BUN_UTILS_H
 
+
+//Compiler uses the #include to literally paste the content of bun.h into the bun_utils.h file before compiling.
 #include "bun.h"
 
 /**
@@ -41,6 +43,11 @@ int safe_mul_u64(u64 a, u64 b, u64 *out);
  */
 int check_range_within_file(u64 offset, u64 size, long file_size);
 
+u16 read_u16_le(const u8 *buf, size_t offset);
+u32 read_u32_le(const u8 *buf, size_t offset);
+u64 read_u64_le(const u8 *buf, size_t offset);
+
+
 /**
  * Decompress RLE-encoded data.
  *
@@ -57,12 +64,9 @@ int check_range_within_file(u64 offset, u64 size, long file_size);
  *
  * Does NOT allocate memory; caller must provide output buffer.
  */
-bun_result_t decompress_rle(
-    const u8 *input,
-    u64 input_size,
-    u8 *output,
-    u64 expected_size
-);
+
+bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size);
+
 
 /**
  * Record a parsing or validation error in the parse context.
@@ -87,4 +91,4 @@ bun_result_t decompress_rle(
  */
 void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...);
 
-#endif // BUN_UTILS_H
+#endif
