@@ -4,32 +4,40 @@
 
 //Compiler uses the #include to literally paste the content of bun.h into the bun_utils.h file before compiling.
 #include "bun.h"
+#include <stdbool.h>
+
+// -----------------------------------------------------------------------------
+// Overflow-safe arithmetic helpers.
+//
+// These are shared by Members 1 and 3 (for layout validation) and exposed
+// here so tests can exercise them directly without pulling in parser state.
+// -----------------------------------------------------------------------------
+
 
 /**
- * Safely compute a + b for u64 values.
- *
- * @param a First operand
- * @param b Second operand
- * @param out Pointer to store result
- * @return 1 if successful, 0 if overflow occurred
- *
- * Prevents integer overflow when performing bounds checks like:
- *   offset + size <= file_size
+ * Compute `a + b` with overflow detection. Returns true on success and
+ * writes the result to *out; returns false on overflow (out is set to
+ * UINT64_MAX as a safety measure, so callers that ignore the return value
+ * will at least not silently read a small wrapped value).
  */
-int safe_add_u64(u64 a, u64 b, u64 *out);
+bool bun_u64_add(uint64_t a, uint64_t b, uint64_t *out);
+
 
 /**
- * Safely compute a * b for u64 values.
- *
- * @param a First operand
- * @param b Second operand
- * @param out Pointer to store result
- * @return 1 if successful, 0 if overflow occurred
- *
- * Used for computing sizes such as:
- *   asset_count * BUN_ASSET_RECORD_SIZE
+ * Compute `a * b` with overflow detection. Same contract as bun_u64_add.
  */
-int safe_mul_u64(u64 a, u64 b, u64 *out);
+bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out);
+
+
+/**
+ * Return true iff [a_off, a_off + a_size) and [b_off, b_off + b_size) are
+ * disjoint, treating zero-length ranges as "touching but not overlapping"
+ * (so they never conflict). Overflow in a_off + a_size or b_off + b_size
+ * is treated as overlap (the caller should have validated bounds already
+ * but this is defensive).
+ */
+bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
+                         uint64_t b_off, uint64_t b_size);
 
 /**
  * Check whether a byte range lies fully within a file.

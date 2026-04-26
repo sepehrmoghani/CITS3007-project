@@ -3,56 +3,62 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdint.h>
-/*
 
- * ------------
- * Performs safe addition of two unsigned 64-bit integers.
- *
- * This function prevents integer overflow by checking whether
- * a + b would exceed the maximum value representable by u64.
- *
- * If overflow would occur, the function returns 0 and does not modify *out.
- * Otherwise, the result of a + b is stored in *out and the function returns 1.
- *
- * This is critical for validating offsets and sizes derived from file data,
- * where unchecked arithmetic could lead to incorrect memory access or security issues.
- */
-int safe_add_u64(u64 a, u64 b, u64 *out) {
-    if (UINT64_MAX - a < b) {
-        return 0;
+
+// -----------------------------------------------------------------------------
+// Overflow-safe arithmetic helpers
+// -----------------------------------------------------------------------------
+bool bun_u64_add(uint64_t a, uint64_t b, uint64_t *out) {
+#if defined(__has_builtin)
+#  if __has_builtin(__builtin_add_overflow)
+    uint64_t tmp;
+    if (__builtin_add_overflow(a, b, &tmp)) {
+    if (out != NULL) *out = UINT64_MAX;
+    return false;
     }
-    *out = a + b;
-    return 1;
+    if (out != NULL) *out = tmp;
+    return true;
+#  endif
+#endif
+    // Portable fallback.
+    if (a > UINT64_MAX - b) {
+    if (out != NULL) *out = UINT64_MAX;
+    return false;
+    }
+    if (out != NULL) *out = a + b;
+    return true;
 }
 
-/*
-
- * ------------
- * Performs safe multiplication of two unsigned 64-bit integers.
- *
- * This function prevents integer overflow by checking whether
- * a * b would exceed the maximum value representable by u64.
- *
- * Special case:
- *   If either operand is zero, the result is zero and no overflow is possible.
- *
- * If overflow would occur, the function returns 0.
- * Otherwise, the result of a * b is stored in *out and the function returns 1.
- *
- * This is used when calculating sizes such as:
- *   asset_count * record_size
- */
-
-int safe_mul_u64(u64 a, u64 b, u64 *out) {
-    if (a == 0u || b == 0u) {
-        *out = 0u;
-        return 1;
+bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out) {
+#if defined(__has_builtin)
+#  if __has_builtin(__builtin_mul_overflow)
+    uint64_t tmp;
+    if (__builtin_mul_overflow(a, b, &tmp)) {
+    if (out != NULL) *out = UINT64_MAX;
+    return false;
     }
-    if (UINT64_MAX / a < b) {
-        return 0;
+    if (out != NULL) *out = tmp;
+    return true;
+#  endif
+#endif
+    if (a != 0 && b > UINT64_MAX / a) {
+    if (out != NULL) *out = UINT64_MAX;
+    return false;
     }
-    *out = a * b;
-    return 1;
+    if (out != NULL) *out = a * b;
+    return true;
+}
+
+bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
+                            uint64_t b_off, uint64_t b_size) {
+    // Zero-length ranges never overlap anything.
+    if (a_size == 0 || b_size == 0) {
+    return true;
+    }
+    uint64_t a_end, b_end;
+    if (!bun_u64_add(a_off, a_size, &a_end)) return false;
+    if (!bun_u64_add(b_off, b_size, &b_end)) return false;
+    return (a_end <= b_off) || (b_end <= a_off);
 }
 
 /*
@@ -79,7 +85,7 @@ int safe_mul_u64(u64 a, u64 b, u64 *out) {
 
  *   1. file_size is non-negative
 
- *   2. offset + size does not overflow (using safe_add_u64)
+ *   2. offset + size does not overflow (using bun_u64_add)
 
  *   3. offset + size <= file_size
 
@@ -104,7 +110,7 @@ int check_range_within_file(u64 offset, u64 size, long file_size) {
     if (file_size < 0) {
         return 0;
     }
-    if (!safe_add_u64(offset, size, &end)) {
+    if (!bun_u64_add(offset, size, &end)) {
         return 0;
     }
     return end <= (u64)file_size;
@@ -124,7 +130,7 @@ int check_range_within_file(u64 offset, u64 size, long file_size) {
  * This is used to decode fields from the BUN file format,
  * which stores all multi-byte integers in little-endian order.
  */
- 
+
 u16 read_u16_le(const u8 *buf, size_t offset) {
     return (u16)((u16)buf[offset] |
                  ((u16)buf[offset + 1u] << 8));
@@ -132,7 +138,6 @@ u16 read_u16_le(const u8 *buf, size_t offset) {
 
 
 /*
- 
  * -----------
  * Reads a 32-bit unsigned integer from a byte buffer in little-endian format.
  *

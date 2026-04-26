@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <inttypes.h>
 
 // -----------------------------------------------------------------------------
 // Printability
@@ -131,59 +132,64 @@ void bun_print_payload_snippet(FILE *out, const unsigned char *buf,
   }
 }
 
-// -----------------------------------------------------------------------------
-// Overflow-safe arithmetic helpers
-// -----------------------------------------------------------------------------
 
-bool bun_u64_add(uint64_t a, uint64_t b, uint64_t *out) {
-#if defined(__has_builtin)
-#  if __has_builtin(__builtin_add_overflow)
-  uint64_t tmp;
-  if (__builtin_add_overflow(a, b, &tmp)) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
-  }
-  if (out != NULL) *out = tmp;
-  return true;
-#  endif
-#endif
-  // Portable fallback.
-  if (a > UINT64_MAX - b) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
-  }
-  if (out != NULL) *out = a + b;
-  return true;
+//Prints the decoded header to Stdout or anyother filestream that gets passed.
+//Nothing is validated only printed.
+
+
+
+
+
+void bun_print_header(FILE *out, const BunHeader *header) {
+    if (out == NULL || header == NULL) {
+        return;
+    }
+
+    fprintf(out, "BUN Header\n");
+    fprintf(out, "----------\n");
+    fprintf(out, "magic: 0x%08" PRIX32 "\n", header->magic);
+    fprintf(out, "version_major: %" PRIu16 "\n", header->version_major);
+    fprintf(out, "version_minor: %" PRIu16 "\n", header->version_minor);
+    fprintf(out, "asset_count: %" PRIu32 "\n", header->asset_count);
+    fprintf(out, "asset_table_offset: %" PRIu64 "\n", header->asset_table_offset);
+    fprintf(out, "string_table_offset: %" PRIu64 "\n", header->string_table_offset);
+    fprintf(out, "string_table_size: %" PRIu64 "\n", header->string_table_size);
+    fprintf(out, "data_section_offset: %" PRIu64 "\n", header->data_section_offset);
+    fprintf(out, "data_section_size: %" PRIu64 "\n", header->data_section_size);
+    fprintf(out, "reserved: %" PRIu64 "\n", header->reserved);
 }
 
-bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out) {
-#if defined(__has_builtin)
-#  if __has_builtin(__builtin_mul_overflow)
-  uint64_t tmp;
-  if (__builtin_mul_overflow(a, b, &tmp)) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
-  }
-  if (out != NULL) *out = tmp;
-  return true;
-#  endif
-#endif
-  if (a != 0 && b > UINT64_MAX / a) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
-  }
-  if (out != NULL) *out = a * b;
-  return true;
+//Prints one asset record.
+//Name Offset, Name Length, Data Offset, Data Size, Compression, Type, Checksum, Flags.
+
+void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index) {
+    if (out == NULL || rec == NULL) {
+        return;
+    }
+
+    fprintf(out, "\nAsset Record %" PRIu32 "\n", index);
+    fprintf(out, "--------------\n");
+    fprintf(out, "name_offset: %" PRIu32 "\n", rec->name_offset);
+    fprintf(out, "name_length: %" PRIu32 "\n", rec->name_length);
+    fprintf(out, "data_offset: %" PRIu64 "\n", rec->data_offset);
+    fprintf(out, "data_size: %" PRIu64 "\n", rec->data_size);
+    fprintf(out, "uncompressed_size: %" PRIu64 "\n", rec->uncompressed_size);
+    fprintf(out, "compression: %" PRIu32 "\n", rec->compression);
+    fprintf(out, "type: %" PRIu32 "\n", rec->type);
+    fprintf(out, "checksum: 0x%08" PRIX32 "\n", rec->checksum);
+    fprintf(out, "flags: 0x%08" PRIX32 "\n", rec->flags);
 }
 
-bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
-                         uint64_t b_off, uint64_t b_size) {
-  // Zero-length ranges never overlap anything.
-  if (a_size == 0 || b_size == 0) {
-    return true;
-  }
-  uint64_t a_end, b_end;
-  if (!bun_u64_add(a_off, a_size, &a_end)) return false;
-  if (!bun_u64_add(b_off, b_size, &b_end)) return false;
-  return (a_end <= b_off) || (b_end <= a_off);
+//All stored errors are printed.
+//If errors are added the function displays them.
+
+void bun_print_errors(FILE *out, const BunParseContext *ctx) {
+    int i;
+    if (out == NULL || ctx == NULL) {
+        return;
+    }
+
+    for (i = 0; i < ctx->error_count; i++) {
+        fprintf(out, "%s\n", ctx->errors[i]);
+    }
 }

@@ -28,12 +28,12 @@ static int is_aligned4(u64 n) {
 
 //function 2
 //Calculates: section end = offset + size.
-//But safely using:safe_add_u64(...). So if offset + size overflows, it fails instead of wrapping around.
+//But safely using:bun_u64_add(...). So if offset + size overflows, it fails instead of wrapping around.
 static int section_end(Section s, u64 *end) {
-    return safe_add_u64(s.offset, s.size, end);
+    return bun_u64_add(s.offset, s.size, end);
 }
 
-//function 3 
+//function 3
 //Checks whether two sections overlap.
 //Returns 1 if they overlap.
 
@@ -71,7 +71,7 @@ bun_result_t validate_header_basic(BunParseContext *ctx, const BunHeader *h) {
 
 //function 5
 //Section Layout IS SEEN.
-//1. Alignment: These must be divisible by 4: asset_table_offset,string_table_offset,string_table_size,data_section_offset,data_section_size. 2. Asset table size: It calculates: asset_table_size = asset_count * 48 using safe multiplication.   
+//1. Alignment: These must be divisible by 4: asset_table_offset,string_table_offset,string_table_size,data_section_offset,data_section_size. 2. Asset table size: It calculates: asset_table_size = asset_count * 48 using safe multiplication.
 //3. Sections inside file: offset + size <= file_size for header, asset entry table, string table,data section. 4. No overlap: header vs asset table, header vs string table, header vs data,asset table vs string table,asset table vs data,string table vs data. If any overlap, malformed.
 bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
     u64 asset_table_size = 0u;
@@ -95,7 +95,7 @@ bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
         add_error(ctx, BUN_MALFORMED, "data_section_size (%" PRIu64 ") is not divisible by 4", h->data_section_size);
     }
 
-    if (!safe_mul_u64((u64)h->asset_count, (u64)BUN_ASSET_RECORD_SIZE, &asset_table_size)) {
+    if (!bun_u64_mul((u64)h->asset_count, (u64)BUN_ASSET_RECORD_SIZE, &asset_table_size)) {
         add_error(ctx, BUN_MALFORMED, "asset table size overflow: asset_count=%" PRIu32, h->asset_count);
         asset_table_size = UINT64_MAX;
     }
@@ -197,13 +197,13 @@ bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *r
     u64 name_end = 0u;
     u64 data_end = 0u;
 
-    if (!safe_add_u64((u64)rec->name_offset, (u64)rec->name_length, &name_end) || name_end > header->string_table_size) {
+    if (!bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &name_end) || name_end > header->string_table_size) {
         add_error(ctx, BUN_MALFORMED,
                   "asset %" PRIu32 " name range outside string table: offset=%" PRIu32 ", length=%" PRIu32 ", string_table_size=%" PRIu64,
                   index, rec->name_offset, rec->name_length, header->string_table_size);
     }
 
-    if (!safe_add_u64(rec->data_offset, rec->data_size, &data_end) || data_end > header->data_section_size) {
+    if (!bun_u64_add(rec->data_offset, rec->data_size, &data_end) || data_end > header->data_section_size) {
         add_error(ctx, BUN_MALFORMED,
                   "asset %" PRIu32 " data range outside data section: offset=%" PRIu64 ", size=%" PRIu64 ", data_section_size=%" PRIu64,
                   index, rec->data_offset, rec->data_size, header->data_section_size);
@@ -240,7 +240,7 @@ bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *r
  *
  * 2. Absolute offset calculation:
  *    Computes the absolute file offset of the name by adding
- *    string_table_offset and name_offset. Uses safe_add_u64()
+ *    string_table_offset and name_offset. Uses bun_u64_add()
  *    to prevent integer overflow.
  *
  * 3. File access:
@@ -267,7 +267,7 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
         return bun_context_result(ctx);
     }
 
-    if (!safe_add_u64(header->string_table_offset, (u64)rec->name_offset, &absolute)) {
+    if (!bun_u64_add(header->string_table_offset, (u64)rec->name_offset, &absolute)) {
         add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " name absolute offset overflows", index);
         return bun_context_result(ctx);
     }
@@ -322,7 +322,7 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
  *
  *    b. Absolute offset calculation:
  *       Computes the absolute data offset using data_section_offset + data_offset.
- *       Uses safe_add_u64() to prevent overflow.
+ *       Uses bun_u64_add() to prevent overflow.
  *
  *    c. File access:
  *       Seeks to the RLE data position. Failure results in a malformed file.
@@ -330,7 +330,7 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
  *    d. RLE decoding checks:
  *       - Reads pairs of (count, value)
  *       - Ensures count != 0 (zero-count is invalid)
- *       - Accumulates expanded size using safe_add_u64()
+ *       - Accumulates expanded size using bun_u64_add()
  *
  *    e. Size verification:
  *       Ensures that the total expanded size matches uncompressed_size.
@@ -374,7 +374,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
         return bun_context_result(ctx);
     }
 
-    if (!safe_add_u64(header->data_section_offset, rec->data_offset, &absolute)) {
+    if (!bun_u64_add(header->data_section_offset, rec->data_offset, &absolute)) {
         add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " data absolute offset overflows", index);
         return bun_context_result(ctx);
     }
@@ -398,7 +398,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
                       index, pos);
             return bun_context_result(ctx);
         }
-        if (!safe_add_u64(expanded, (u64)(unsigned)count, &expanded)) {
+        if (!bun_u64_add(expanded, (u64)(unsigned)count, &expanded)) {
             add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " RLE expanded size overflows", index);
             return bun_context_result(ctx);
         }

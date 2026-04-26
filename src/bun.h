@@ -1,10 +1,9 @@
-
-//This prevents the header from being included multiple times allowing errors to be avoided.
 #ifndef BUN_H
 #define BUN_H
 
 #include <stdint.h>
 #include <stdio.h>
+
 
 /*
  * Result codes.
@@ -20,6 +19,7 @@ typedef enum {
     BUN_ERR_INTERNAL = 5
 } bun_result_t;
 
+
 //
 // Data types (per BUN spec section 2)
 // All multi-byte integers are little-endian on disk.
@@ -28,6 +28,7 @@ typedef uint8_t  u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
+
 
 //
 // On-disk structures (per BUN spec sections 4 and 5)
@@ -45,7 +46,6 @@ typedef uint64_t u64;
 #define BUN_COMPRESSION_ZLIB 2u
 
 
-
 typedef struct {
     u32 magic;
     u16 version_major;
@@ -60,8 +60,6 @@ typedef struct {
 } BunHeader;
 
 
-
-
 typedef struct {
     u32 name_offset;
     u32 name_length;
@@ -73,6 +71,7 @@ typedef struct {
     u32 checksum;
     u32 flags;
 } BunAssetRecord;
+
 
 //
 // Expected on-disk sizes -- these can be used in assertions or static_asserts.
@@ -93,12 +92,6 @@ typedef struct {
 #define MAX_ERROR_LEN 256
 
 
-//This is what a BunParseContext looks like.
-
-
-
-
-
 typedef struct {
     FILE *file;               // open file handle
     long file_size;           // total file size in bytes
@@ -111,8 +104,6 @@ typedef struct {
     int saw_unsupported;
     bun_result_t worst_error;
 } BunParseContext;
-
-
 
 
 //
@@ -168,9 +159,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header);
  */
 bun_result_t bun_close(BunParseContext *ctx);
 
-void bun_print_header(FILE *out, const BunHeader *header);
-void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index);
-void bun_print_errors(FILE *out, const BunParseContext *ctx);
+
 bun_result_t bun_context_result(const BunParseContext *ctx);
 
 #endif
