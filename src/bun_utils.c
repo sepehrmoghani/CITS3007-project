@@ -62,56 +62,34 @@ bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
 }
 
 /*
-
-
-
  * -----------------------
-
  * Verifies that a byte range lies completely within the bounds of the file.
-
  *
-
  * Parameters:
-
  *   offset     - starting byte position
-
  *   size       - length of the range
-
  *   file_size  - total file size
-
  *
-
  * The function checks:
-
  *   1. file_size is non-negative
-
  *   2. offset + size does not overflow (using bun_u64_add)
-
  *   3. offset + size <= file_size
-
  *
-
  * Returns:
-
- *   1 if the range is valid and within the file bounds
-
- *   0 otherwise
-
+ *   true if the range is valid and within the file bounds
+ *   false otherwise
  *
-
  * This prevents reading beyond the end of the file, which could lead
-
  * to undefined behaviour or security vulnerabilities.
-
  */
 
-int check_range_within_file(u64 offset, u64 size, long file_size) {
+bool check_range_within_file(u64 offset, u64 size, long file_size) {
     u64 end = 0u;
     if (file_size < 0) {
-        return 0;
+        return false;
     }
     if (!bun_u64_add(offset, size, &end)) {
-        return 0;
+        return false;
     }
     return end <= (u64)file_size;
 }
@@ -130,7 +108,6 @@ int check_range_within_file(u64 offset, u64 size, long file_size) {
  * This is used to decode fields from the BUN file format,
  * which stores all multi-byte integers in little-endian order.
  */
-
 u16 read_u16_le(const u8 *buf, size_t offset) {
     return (u16)((u16)buf[offset] |
                  ((u16)buf[offset + 1u] << 8));
@@ -149,7 +126,6 @@ u16 read_u16_le(const u8 *buf, size_t offset) {
  *
  * Used for decoding header and asset record fields from the file.
  */
-
 u32 read_u32_le(const u8 *buf, size_t offset) {
     return (u32)((u32)buf[offset] |
                  ((u32)buf[offset + 1u] << 8) |
@@ -159,7 +135,6 @@ u32 read_u32_le(const u8 *buf, size_t offset) {
 
 
 /*
-
  * -----------
  * Reads a 64-bit unsigned integer from a byte buffer in little-endian format.
  *
@@ -168,7 +143,6 @@ u32 read_u32_le(const u8 *buf, size_t offset) {
  * This is required for decoding large offsets and sizes in the BUN format,
  * such as section offsets and data sizes.
  */
-
 u64 read_u64_le(const u8 *buf, size_t offset) {
     return (u64)((u64)buf[offset] |
                  ((u64)buf[offset + 1u] << 8) |
@@ -250,7 +224,6 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
 
 
 /*
-
  * ---------
  * Records an error message in the parser context.
  *

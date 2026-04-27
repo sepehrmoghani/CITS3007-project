@@ -45,14 +45,51 @@ bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
  * @param offset Start of range
  * @param size Length of range
  * @param file_size Total file size
- * @return 1 if valid, 0 otherwise
+ * @return true if valid, false otherwise
  *
  * Internally uses safe_add_u64 to avoid overflow.
  */
-int check_range_within_file(u64 offset, u64 size, long file_size);
+bool check_range_within_file(u64 offset, u64 size, long file_size);
 
+
+/* -----------
+* Reads a 16-bit unsigned integer from a byte buffer in little-endian format.
+*
+* The least significant byte is stored first in memory.
+*
+* Example:
+*   bytes: [0x34, 0x12] → value = 0x1234
+*
+* This is used to decode fields from the BUN file format,
+* which stores all multi-byte integers in little-endian order.
+*/
 u16 read_u16_le(const u8 *buf, size_t offset);
+
+
+/*
+ * -----------
+ * Reads a 32-bit unsigned integer from a byte buffer in little-endian format.
+ *
+ * Combines four consecutive bytes into a single u32 value,
+ * with the least significant byte at the lowest address.
+ *
+ * Example:
+ *   bytes: [0x78, 0x56, 0x34, 0x12] → value = 0x12345678
+ *
+ * Used for decoding header and asset record fields from the file.
+ */
 u32 read_u32_le(const u8 *buf, size_t offset);
+
+
+/*
+ * -----------
+ * Reads a 64-bit unsigned integer from a byte buffer in little-endian format.
+ *
+ * Combines eight consecutive bytes into a single u64 value.
+ *
+ * This is required for decoding large offsets and sizes in the BUN format,
+ * such as section offsets and data sizes.
+ */
 u64 read_u64_le(const u8 *buf, size_t offset);
 
 
@@ -72,7 +109,6 @@ u64 read_u64_le(const u8 *buf, size_t offset);
  *
  * Does NOT allocate memory; caller must provide output buffer.
  */
-
 bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size);
 
 

@@ -198,11 +198,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
 //This closes the open file.
 //It checks:    context is not NULL and     file is not already closed.
 //Then:fclose(ctx->file);ctx->file = NULL;prevents leaving files open.
-
-
-
-
-
 bun_result_t bun_close(BunParseContext *ctx) {
     if (ctx == NULL) {
         return BUN_ERR_INTERNAL;

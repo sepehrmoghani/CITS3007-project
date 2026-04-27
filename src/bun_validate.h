@@ -2,7 +2,13 @@
 #define BUN_VALIDATE_H
 
 #include "bun.h"
+#include <stdbool.h>
 
+typedef struct {
+    u64 offset;
+    u64 size;
+    const char *name;
+} Section;
 
 /**
  * Validate basic header fields.

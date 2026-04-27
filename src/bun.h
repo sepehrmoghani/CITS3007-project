@@ -159,7 +159,24 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header);
  */
 bun_result_t bun_close(BunParseContext *ctx);
 
-
+/*
+ * ---------------------
+ * Determines the overall parsing result from the parser context.
+ * This function inspects the error flags recorded in the context and
+ * returns the most severe result encountered during parsing.
+ *
+ * Behaviour:
+ *   - If ctx->saw_malformed is set, returns BUN_MALFORMED
+ *   - Else if ctx->saw_unsupported is set, returns BUN_UNSUPPORTED
+ *   - Otherwise returns BUN_OK
+ * If ctx is NULL, the function returns BUN_ERR_INTERNAL.
+ *
+ * Parameters:
+ *   ctx - pointer to the parser context
+ *
+ * Returns:
+ *   bun_result_t indicating the overall parsing outcome
+ */
 bun_result_t bun_context_result(const BunParseContext *ctx);
 
 #endif

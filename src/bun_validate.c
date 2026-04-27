@@ -9,12 +9,6 @@
 #define PRINTABLE_ASCII_MIN 0x20u
 #define PRINTABLE_ASCII_MAX 0x7Eu
 
-typedef struct {
-    u64 offset;
-    u64 size;
-    const char *name;
-} Section;
-
 
 //Private helpers.
 
@@ -35,14 +29,14 @@ static int section_end(Section s, u64 *end) {
 
 //function 3
 //Checks whether two sections overlap.
-//Returns 1 if they overlap.
+//Returns true if they overlap.
 
-static int sections_overlap(Section a, Section b) {
+static bool sections_overlap(Section a, Section b) {
     u64 a_end = 0u;
     u64 b_end = 0u;
 
     if (!section_end(a, &a_end) || !section_end(b, &b_end)) {
-        return 1;
+        return true;
     }
     return !(a_end <= b.offset || b_end <= a.offset);
 }
