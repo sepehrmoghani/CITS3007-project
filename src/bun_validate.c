@@ -191,7 +191,9 @@ bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *r
     u64 name_end = 0u;
     u64 data_end = 0u;
 
-    if (!bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &name_end) || name_end > header->string_table_size) {
+    if (rec->name_length == 0u) {
+        add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " has empty name", index);
+    } else if (!bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &name_end) || name_end > header->string_table_size) {
         add_error(ctx, BUN_MALFORMED,
                   "asset %" PRIu32 " name range outside string table: offset=%" PRIu32 ", length=%" PRIu32 ", string_table_size=%" PRIu64,
                   index, rec->name_offset, rec->name_length, header->string_table_size);
