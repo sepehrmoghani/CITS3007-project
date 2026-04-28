@@ -6,3 +6,5 @@
 # The script should contain one command per line, and each command
 # must start with either `sudo apt-get install` or `git clone`.
 # Any other commands will be ignored by markers.
+
+sudo apt-get install check
