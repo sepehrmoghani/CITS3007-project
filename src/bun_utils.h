@@ -124,8 +124,6 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
  * context's internal error list, up to a fixed maximum number of stored
  * errors.
  *
- * Also updates ctx->worst_error to reflect the most severe
- * error encountered so far.
  *
  * If the maximum number of errors has already been reached, the new
  * error is silently discarded to prevent buffer overflow.

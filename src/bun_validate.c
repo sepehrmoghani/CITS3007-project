@@ -123,70 +123,37 @@ bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
 
 //function 6
 /*
-
  * ---------------------
-
  * Validates a single asset record against the BUN specification.
-
  *
-
  * This function performs structural and security checks to ensure that
-
  * the asset record does not reference invalid or unsafe regions of the file.
-
  *
-
  * Checks performed:
-
  *
-
  * 1. Name bounds:
-
  *    Ensures that name_offset + name_length does not exceed the size
-
  *    of the string table. Prevents reading outside the string table.
-
  *
-
  * 2. Data bounds:
-
  *    Ensures that data_offset + data_size does not exceed the size
-
  *    of the data section. Prevents reading outside the data section.
-
  *
-
  * 3. Flags validation:
-
  *    Verifies that only supported flag bits are set (ENCRYPTED and EXECUTABLE).
-
  *    Any unknown flag bits result in BUN_UNSUPPORTED.
-
  *
-
  * 4. Checksum validation:
-
  *    If checksum is non-zero, the parser reports BUN_UNSUPPORTED,
-
  *    since CRC validation is not implemented.
-
  *
-
  * 5. Compression validation:
-
  *    Delegates compression-specific checks (e.g. RLE, zlib, unknown types)
-
  *    to validate_compression().
-
  *
-
  * Errors are recorded using add_error(), and the final result is derived
-
  * from the context using bun_context_result().
-
  */
-
-
 bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *rec, const BunHeader *header, u32 index) {
     u64 name_end = 0u;
     u64 data_end = 0u;

@@ -239,12 +239,10 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
  *    - Sets ctx->saw_malformed if code is BUN_MALFORMED
  *    - Sets ctx->saw_unsupported if code is BUN_UNSUPPORTED
  *
- * 2. Updates ctx->worst_error using bun_context_result()
- *
- * 3. Stores a formatted error message in ctx->errors[],
+ * 2. Stores a formatted error message in ctx->errors[],
  *    provided the maximum error limit has not been reached.
  *
- * 4. Increments ctx->error_count
+ * 3. Increments ctx->error_count
  *
  * This allows the parser to:
  *   - collect multiple errors safely
@@ -266,7 +264,6 @@ void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...) {
     } else if (code == BUN_UNSUPPORTED) {
         ctx->saw_unsupported = 1;
     }
-    ctx->worst_error = bun_context_result(ctx);
 
     if (ctx->error_count >= MAX_ERRORS) {
         return;

@@ -158,7 +158,6 @@ bun_result_t bun_open(const char *path, BunParseContext *ctx) {
   }
 
   memset(ctx, 0, sizeof(*ctx));
-  ctx->worst_error = BUN_OK;
 
   ctx->file = fopen(path, "rb");
   if (ctx->file == NULL) {
