@@ -24,10 +24,10 @@
 #define _POSIX_C_SOURCE 200809L
 #include "bun.h"
 #include "bun_output.h"
+#include "bun_utils.h"
 
 #include <check.h>
 
-#include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
