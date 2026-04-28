@@ -21,6 +21,7 @@
 // Author: Group 22, Member 4.
 // -----------------------------------------------------------------------------
 
+#define _POSIX_C_SOURCE 200809L
 #include "bun.h"
 #include "bun_output.h"
 
@@ -125,7 +126,7 @@ END_TEST
 START_TEST(test_output_print_escaped_plain) {
     char buf[64] = {0};
     FILE *f = fmemopen(buf, sizeof(buf), "w");
-    ck_assert_ptr_nonnull(f);
+    ck_assert_ptr_ne(f,NULL);
     bun_print_escaped(f, (const unsigned char *)"hi", 2, 60);
     fflush(f);
     fclose(f);
@@ -136,7 +137,7 @@ END_TEST
 START_TEST(test_output_print_escaped_hex) {
     char buf[64] = {0};
     FILE *f = fmemopen(buf, sizeof(buf), "w");
-    ck_assert_ptr_nonnull(f);
+    ck_assert_ptr_ne(f,NULL);
     const unsigned char src[] = { 'a', 0x01, 'b' };
     bun_print_escaped(f, src, 3, 60);
     fflush(f);
@@ -148,7 +149,7 @@ END_TEST
 START_TEST(test_output_print_escaped_truncates) {
     char buf[64] = {0};
     FILE *f = fmemopen(buf, sizeof(buf), "w");
-    ck_assert_ptr_nonnull(f);
+    ck_assert_ptr_ne(f,NULL);
     const unsigned char src[] = "0123456789";
     bun_print_escaped(f, src, 10, 4);
     fflush(f);
