@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     result = bun_open(path, &ctx);
     if (result != BUN_OK) {
         fprintf(stderr, "Error: could not open or read '%s'\n", path);
-        return result;
+        return (int)result;
     }
 
 
@@ -108,8 +108,10 @@ int main(int argc, char *argv[]) {
     if (result == BUN_MALFORMED || result == BUN_UNSUPPORTED) {
         bun_print_errors(stderr, &ctx);
     } else if (result == BUN_ERR_IO) {
+        fprintf(stderr, "----------\n");
         fprintf(stderr, "Error: I/O failure while processing '%s'\n", path);
     } else if (result == BUN_ERR_INTERNAL) {
+        fprintf(stderr, "----------\n");
         fprintf(stderr, "Error: internal parser error\n");
     }
 
@@ -127,5 +129,5 @@ int main(int argc, char *argv[]) {
     /*
      * Return the final parser result as the program exit code.
      */
-    return result;
+    return (int)result;
 }

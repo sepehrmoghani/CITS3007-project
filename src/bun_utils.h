@@ -124,8 +124,6 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
  * context's internal error list, up to a fixed maximum number of stored
  * errors.
  *
- * Also updates ctx->worst_error to reflect the most severe
- * error encountered so far.
  *
  * If the maximum number of errors has already been reached, the new
  * error is silently discarded to prevent buffer overflow.
@@ -133,6 +131,7 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
  * This function does not perform any I/O; error messages must be
  * printed by another function.
  */
-void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...);
+void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
 #endif

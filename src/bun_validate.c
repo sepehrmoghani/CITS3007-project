@@ -123,75 +123,44 @@ bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
 
 //function 6
 /*
-
  * ---------------------
-
  * Validates a single asset record against the BUN specification.
-
  *
-
  * This function performs structural and security checks to ensure that
-
  * the asset record does not reference invalid or unsafe regions of the file.
-
  *
-
  * Checks performed:
-
  *
-
  * 1. Name bounds:
-
  *    Ensures that name_offset + name_length does not exceed the size
-
  *    of the string table. Prevents reading outside the string table.
-
  *
-
  * 2. Data bounds:
-
  *    Ensures that data_offset + data_size does not exceed the size
-
  *    of the data section. Prevents reading outside the data section.
-
  *
-
  * 3. Flags validation:
-
  *    Verifies that only supported flag bits are set (ENCRYPTED and EXECUTABLE).
-
  *    Any unknown flag bits result in BUN_UNSUPPORTED.
-
  *
-
  * 4. Checksum validation:
-
  *    If checksum is non-zero, the parser reports BUN_UNSUPPORTED,
-
  *    since CRC validation is not implemented.
-
  *
-
  * 5. Compression validation:
-
  *    Delegates compression-specific checks (e.g. RLE, zlib, unknown types)
-
  *    to validate_compression().
-
  *
-
  * Errors are recorded using add_error(), and the final result is derived
-
  * from the context using bun_context_result().
-
  */
-
-
 bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *rec, const BunHeader *header, u32 index) {
     u64 name_end = 0u;
     u64 data_end = 0u;
 
-    if (!bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &name_end) || name_end > header->string_table_size) {
+    if (rec->name_length == 0u) {
+        add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " has empty name", index);
+    } else if (!bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &name_end) || name_end > header->string_table_size) {
         add_error(ctx, BUN_MALFORMED,
                   "asset %" PRIu32 " name range outside string table: offset=%" PRIu32 ", length=%" PRIu32 ", string_table_size=%" PRIu64,
                   index, rec->name_offset, rec->name_length, header->string_table_size);
@@ -338,7 +307,6 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
 bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header, const BunAssetRecord *rec, u32 index) {
     u64 absolute = 0u;
     u64 expanded = 0u;
-    u64 pos;
 
     if (rec->compression == BUN_COMPRESSION_NONE) {
         if (rec->uncompressed_size != 0u) {
@@ -378,24 +346,49 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
         return bun_context_result(ctx);
     }
 
-    for (pos = 0u; pos < rec->data_size; pos += 2u) {
-        int count = fgetc(ctx->file);
-        int value = fgetc(ctx->file);
-        (void)value;
-        if (count == EOF || value == EOF) {
-            add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " RLE data read failed", index);
-            return bun_context_result(ctx);
+    uint8_t buffer[4096];
+    size_t bytes_read;
+
+    size_t remaining = rec->data_size;
+    u64 global_pos = rec->data_size - remaining;
+
+    while (remaining > 0) {
+        size_t to_read = sizeof(buffer);
+        if (to_read > remaining) {
+            to_read = remaining;
         }
-        if (count == 0) {
+
+        bytes_read = fread(buffer, 1, to_read, ctx->file);
+
+        if (bytes_read != to_read) {
             add_error(ctx, BUN_MALFORMED,
-                      "asset %" PRIu32 " RLE pair at data byte %" PRIu64 " has zero count",
-                      index, pos);
+                      "asset %" PRIu32 " RLE data read failed",
+                      index);
             return bun_context_result(ctx);
         }
-        if (!bun_u64_add(expanded, (u64)(unsigned)count, &expanded)) {
-            add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " RLE expanded size overflows", index);
-            return bun_context_result(ctx);
+
+        for (size_t i = 0; i < bytes_read; i += 2) {
+
+            uint8_t count = buffer[i];
+            uint8_t value = buffer[i + 1];
+            (void)value;
+
+            if (count == 0) {
+                add_error(ctx, BUN_MALFORMED,
+                          "asset %" PRIu32 " RLE pair at byte %" PRIu64 " has zero count",
+                          index, global_pos + i);
+                return bun_context_result(ctx);
+            }
+
+            if (!bun_u64_add(expanded, (uint64_t)count, &expanded)) {
+                add_error(ctx, BUN_MALFORMED,
+                          "asset %" PRIu32 " RLE expanded size overflows",
+                          index);
+                return bun_context_result(ctx);
+            }
         }
+
+        remaining -= bytes_read;
     }
 
     if (expanded != rec->uncompressed_size) {

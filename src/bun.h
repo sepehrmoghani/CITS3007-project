@@ -102,7 +102,6 @@ typedef struct {
     int error_count;
     int saw_malformed;
     int saw_unsupported;
-    bun_result_t worst_error;
 } BunParseContext;
 
 
