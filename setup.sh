@@ -7,4 +7,5 @@
 # must start with either `sudo apt-get install` or `git clone`.
 # Any other commands will be ignored by markers.
 
+sudo apt-get update
 sudo apt-get install check
