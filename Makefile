@@ -21,7 +21,8 @@ CFLAGS   = -std=c11 -Wall -Wextra -Wpedantic \
            -Wshadow -Wconversion -Wstrict-prototypes \
            -Wwrite-strings -Wpointer-arith -Wcast-align \
            -Wformat=2 -Wno-unused-parameter \
-           -D_FILE_OFFSET_BITS=64
+           -D_FILE_OFFSET_BITS=64 \
+           -I$(SRC_DIR)
 LDFLAGS  =
 
 # Sanitizer flags - enabled by the "asan" target below, and recommended
@@ -33,8 +34,12 @@ SAN_FLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
 #   MAIN   - the CLI entry point
 #   OUTPUT - Member 4 secondary contribution: printable-ASCII/hex-dump helpers
 #   TEST   - libcheck unit tests
-LIB      = bun_parse.c bun_output.c
-MAIN     = main.c
+SRC_DIR  = src
+LIB      = $(SRC_DIR)/bun_parse.c \
+           $(SRC_DIR)/bun_output.c \
+           $(SRC_DIR)/bun_utils.c \
+           $(SRC_DIR)/bun_validate.c
+MAIN     = $(SRC_DIR)/main.c
 TEST     = tests/test_bun.c
 
 PYTHON   = python3
@@ -47,7 +52,11 @@ all: bun_parser
 # Build rules
 # -----------------------------------------------------------------------------
 
-bun_parser: $(MAIN) $(LIB) bun.h bun_output.h
+bun_parser: $(MAIN) $(LIB) \
+            $(SRC_DIR)/bun.h \
+            $(SRC_DIR)/bun_output.h \
+            $(SRC_DIR)/bun_utils.h \
+            $(SRC_DIR)/bun_validate.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(MAIN) $(LIB)
 
 # Sanitizer build: same binary name, different flags. Useful for `make asan &&
@@ -67,7 +76,11 @@ test: fixtures tests/test_runner bun_parser
 
 # libcheck test runner. Links in the parser library but NOT main.c (libcheck
 # supplies its own main()).
-tests/test_runner: $(TEST) $(LIB) bun.h bun_output.h
+tests/test_runner: $(TEST) $(LIB) \
+                   $(SRC_DIR)/bun.h \
+                   $(SRC_DIR)/bun_output.h \
+                   $(SRC_DIR)/bun_utils.h \
+                   $(SRC_DIR)/bun_validate.h
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(TEST) $(LIB) \
 	      $$(pkg-config --cflags --libs check)
 
