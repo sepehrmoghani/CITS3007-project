@@ -184,12 +184,12 @@ void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index) {
 //If errors are added the function displays them.
 
 void bun_print_errors(FILE *out, const BunParseContext *ctx) {
-    int i;
     if (out == NULL || ctx == NULL) {
         return;
     }
 
-    for (i = 0; i < ctx->error_count; i++) {
+    fprintf(stderr, "\nERRORS\n----------\n");
+    for (int i = 0; i < ctx->error_count; i++) {
         fprintf(out, "%s\n", ctx->errors[i]);
     }
 }

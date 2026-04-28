@@ -21,8 +21,8 @@
 // Author: Group 22, Member 4.
 // -----------------------------------------------------------------------------
 
-#include "../bun.h"
-#include "../bun_output.h"
+#include "bun.h"
+#include "bun_output.h"
 
 #include <check.h>
 

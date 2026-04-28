@@ -133,6 +133,7 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
  * This function does not perform any I/O; error messages must be
  * printed by another function.
  */
-void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...);
+void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...)
+    __attribute__((format(printf, 3, 4)));
 
 #endif

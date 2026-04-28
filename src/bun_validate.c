@@ -340,7 +340,6 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
 bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header, const BunAssetRecord *rec, u32 index) {
     u64 absolute = 0u;
     u64 expanded = 0u;
-    u64 pos;
 
     if (rec->compression == BUN_COMPRESSION_NONE) {
         if (rec->uncompressed_size != 0u) {
@@ -380,24 +379,49 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
         return bun_context_result(ctx);
     }
 
-    for (pos = 0u; pos < rec->data_size; pos += 2u) {
-        int count = fgetc(ctx->file);
-        int value = fgetc(ctx->file);
-        (void)value;
-        if (count == EOF || value == EOF) {
-            add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " RLE data read failed", index);
-            return bun_context_result(ctx);
+    uint8_t buffer[4096];
+    size_t bytes_read;
+
+    size_t remaining = rec->data_size;
+    u64 global_pos = rec->data_size - remaining;
+
+    while (remaining > 0) {
+        size_t to_read = sizeof(buffer);
+        if (to_read > remaining) {
+            to_read = remaining;
         }
-        if (count == 0) {
+
+        bytes_read = fread(buffer, 1, to_read, ctx->file);
+
+        if (bytes_read != to_read) {
             add_error(ctx, BUN_MALFORMED,
-                      "asset %" PRIu32 " RLE pair at data byte %" PRIu64 " has zero count",
-                      index, pos);
+                      "asset %" PRIu32 " RLE data read failed",
+                      index);
             return bun_context_result(ctx);
         }
-        if (!bun_u64_add(expanded, (u64)(unsigned)count, &expanded)) {
-            add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " RLE expanded size overflows", index);
-            return bun_context_result(ctx);
+
+        for (size_t i = 0; i < bytes_read; i += 2) {
+
+            uint8_t count = buffer[i];
+            uint8_t value = buffer[i + 1];
+            (void)value;
+
+            if (count == 0) {
+                add_error(ctx, BUN_MALFORMED,
+                          "asset %" PRIu32 " RLE pair at byte %" PRIu64 " has zero count",
+                          index, global_pos + i);
+                return bun_context_result(ctx);
+            }
+
+            if (!bun_u64_add(expanded, (uint64_t)count, &expanded)) {
+                add_error(ctx, BUN_MALFORMED,
+                          "asset %" PRIu32 " RLE expanded size overflows",
+                          index);
+                return bun_context_result(ctx);
+            }
         }
+
+        remaining -= bytes_read;
     }
 
     if (expanded != rec->uncompressed_size) {
