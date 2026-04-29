@@ -191,7 +191,7 @@ These functions are defined but never called internally.
     - bun_utils.c — `bun_ranges_disjoint` is never used  
     - bun_utils.c— `decompress_rle` is never used
 
-Fix Commits- 
+Terminal Image- 
 ![](cppcheck.png)
 
 Fix Commits - [commit 405a6ab6893680fba8ec4ea6e5f90f3ea870dd9c](https://github.com/sepehrmoghani/CITS3007-project/pull/9/changes/405a6ab6893680fba8ec4ea6e5f90f3ea870dd9c) and [commit dd135a3205f12276b769915f4e74d43c005f39f7](https://github.com/sepehrmoghani/CITS3007-project/pull/9/changes/dd135a3205f12276b769915f4e74d43c005f39f7)
