@@ -21,17 +21,17 @@ bool bun_u64_add(uint64_t a, uint64_t b, uint64_t *out) {
 #  if __has_builtin(__builtin_add_overflow)
     uint64_t tmp;
     if (__builtin_add_overflow(a, b, &tmp)) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
+        if (out != NULL) *out = UINT64_MAX;
+        return false;
     }
     if (out != NULL) *out = tmp;
     return true;
 #  endif
 #endif
-    // Portable fallback.
+    // Portable fallback
     if (a > UINT64_MAX - b) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
+        if (out != NULL) *out = UINT64_MAX;
+        return false;
     }
     if (out != NULL) *out = a + b;
     return true;
@@ -42,16 +42,16 @@ bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out) {
 #  if __has_builtin(__builtin_mul_overflow)
     uint64_t tmp;
     if (__builtin_mul_overflow(a, b, &tmp)) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
+        if (out != NULL) *out = UINT64_MAX;
+        return false;
     }
     if (out != NULL) *out = tmp;
     return true;
 #  endif
 #endif
     if (a != 0 && b > UINT64_MAX / a) {
-    if (out != NULL) *out = UINT64_MAX;
-    return false;
+        if (out != NULL) *out = UINT64_MAX;
+        return false;
     }
     if (out != NULL) *out = a * b;
     return true;
@@ -136,12 +136,11 @@ size_t rle_decode_prefix(const u8 *input,
   for (size_t i = 0u; i + 1u < input_len && out_pos < output_cap; i += 2u) {
     u8 count = input[i];
     u8 value = input[i + 1u];
-    u8 j;
 
     if (count == 0u) {
       break;
     }
-    for (j = 0u; j < count && out_pos < output_cap; j++) {
+    for (u8 j = 0u; j < count && out_pos < output_cap; j++) {
       output[out_pos++] = value;
     }
   }

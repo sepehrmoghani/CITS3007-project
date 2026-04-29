@@ -96,11 +96,45 @@ void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index);
 void bun_print_errors(FILE *out, const BunParseContext *ctx);
 
 
+/**
+ * @brief Print a bounded, escaped snippet of an asset's name.
+ *
+ * Reads up to NAME_SNIPPET_BYTES from the asset name in the string table
+ * and prints it to stdout in quoted, escaped form.
+ *
+ * Validates the name range with name_range_safe(), computes the file
+ * offset using bun_u64_add(), and seeks using seek_u64().
+ *
+ * On failure (invalid range, overflow, seek/read error), prints a
+ * placeholder instead of attempting unsafe access.
+ *
+ * @param ctx     Parsing context with file handle.
+ * @param header  Parsed BUN header.
+ * @param rec     Asset record with name offset and length.
+ */
 void print_asset_payload_snippet(BunParseContext *ctx,
                                         const BunHeader *header,
                                         const BunAssetRecord *rec);
 
 
+/**
+ * @brief Print a bounded snippet of an asset's payload.
+ *
+ * Displays up to PAYLOAD_SNIPPET_BYTES of payload data, handling
+ * uncompressed and RLE-compressed assets.
+ *
+ * Validates bounds with data_range_safe(), computes offsets safely
+ * using bun_u64_add(), and seeks with seek_u64().
+ *
+ * RLE data is partially read and decoded via rle_decode_prefix().
+ * Unsupported compression prints a message instead.
+ *
+ * On failure or empty payload, prints a suitable placeholder.
+ *
+ * @param ctx     Parsing context with file handle.
+ * @param header  Parsed BUN header.
+ * @param rec     Asset record with payload metadata.
+ */
 void print_asset_name_snippet(BunParseContext *ctx,
                                      const BunHeader *header,
                                      const BunAssetRecord *rec);

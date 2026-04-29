@@ -16,25 +16,22 @@
 
 //Private helpers.
 
-//function 1
 //Checks whether a number is divisible by 4.
 //Used because BUN section offsets/sizes must be 4-byte aligned.
-
 static int is_aligned4(u64 n) {
     return (n % 4u) == 0u;
 }
 
-//function 2
+
 //Calculates: section end = offset + size.
 //But safely using:bun_u64_add(...). So if offset + size overflows, it fails instead of wrapping around.
 static int section_end(Section s, u64 *end) {
     return bun_u64_add(s.offset, s.size, end);
 }
 
-//function 3
+
 //Checks whether two sections overlap.
 //Returns true if they overlap.
-
 static bool sections_overlap(Section a, Section b) {
     u64 a_end = 0u;
     u64 b_end = 0u;
@@ -45,7 +42,6 @@ static bool sections_overlap(Section a, Section b) {
     return !(a_end <= b.offset || b_end <= a.offset);
 }
 
-//function 4
 
 bun_result_t validate_header_basic(BunParseContext *ctx, const BunHeader *h) {
     if (h->magic != BUN_MAGIC) {
@@ -64,12 +60,10 @@ bun_result_t validate_header_basic(BunParseContext *ctx, const BunHeader *h) {
     return bun_context_result(ctx);
 }
 
-//function 5
+
 bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
     u64 asset_table_size = 0u;
     Section sections[4];
-    size_t i;
-    size_t j;
 
     if (!is_aligned4(h->asset_table_offset)) {
         add_error(ctx, BUN_MALFORMED, "asset_table_offset (%" PRIu64 ") is not 4-byte aligned", h->asset_table_offset);
@@ -97,7 +91,7 @@ bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
     sections[2] = (Section){h->string_table_offset, h->string_table_size, "string table"};
     sections[3] = (Section){h->data_section_offset, h->data_section_size, "data section"};
 
-    for (i = 0u; i < 4u; i++) {
+    for (size_t i = 0u; i < 4u; i++) {
         u64 end = 0u;
         if (!section_end(sections[i], &end)) {
             add_error(ctx, BUN_MALFORMED, "%s end offset overflows u64", sections[i].name);
@@ -108,8 +102,8 @@ bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
         }
     }
 
-    for (i = 0u; i < 4u; i++) {
-        for (j = i + 1u; j < 4u; j++) {
+    for (size_t i = 0u; i < 4u; i++) {
+        for (size_t j = i + 1u; j < 4u; j++) {
             if (sections_overlap(sections[i], sections[j])) {
                 add_error(ctx, BUN_MALFORMED, "%s overlaps %s", sections[i].name, sections[j].name);
             }
@@ -119,7 +113,7 @@ bun_result_t validate_header_offsets(BunParseContext *ctx, const BunHeader *h) {
     return bun_context_result(ctx);
 }
 
-//function 6
+
 bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *rec, const BunHeader *header, u32 index) {
     u64 name_end = 0u;
     u64 data_end = 0u;
@@ -154,10 +148,9 @@ bun_result_t validate_asset_record(BunParseContext *ctx, const BunAssetRecord *r
     return bun_context_result(ctx);
 }
 
-//function 7
+
 bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, const BunAssetRecord *rec, u32 index) {
     u64 absolute = 0u;
-    u32 i;
 
     if (rec->name_length == 0u) {
         add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " has empty name", index);
@@ -174,7 +167,7 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
         return bun_context_result(ctx);
     }
 
-    for (i = 0u; i < rec->name_length; i++) {
+    for (u32 i = 0u; i < rec->name_length; i++) {
         int ch = fgetc(ctx->file);
         if (ch == EOF) {
             add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " name read failed", index);
@@ -191,7 +184,7 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
     return bun_context_result(ctx);
 }
 
-//function 8
+
 bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header, const BunAssetRecord *rec, u32 index) {
     u64 absolute = 0u;
     u64 expanded = 0u;
@@ -235,7 +228,6 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
     }
 
     uint8_t buffer[4096];
-
     size_t remaining = rec->data_size;
     u64 global_pos = rec->data_size - remaining;
 
@@ -249,13 +241,11 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
 
         if (bytes_read != to_read) {
             add_error(ctx, BUN_MALFORMED,
-                      "asset %" PRIu32 " RLE data read failed",
-                      index);
+                      "asset %" PRIu32 " RLE data read failed", index);
             return bun_context_result(ctx);
         }
 
         for (size_t i = 0; i < bytes_read; i += 2) {
-
             uint8_t count = buffer[i];
             uint8_t value = buffer[i + 1];
             (void)value;
@@ -269,8 +259,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
 
             if (!bun_u64_add(expanded, (uint64_t)count, &expanded)) {
                 add_error(ctx, BUN_MALFORMED,
-                          "asset %" PRIu32 " RLE expanded size overflows",
-                          index);
+                          "asset %" PRIu32 " RLE expanded size overflows", index);
                 return bun_context_result(ctx);
             }
         }
