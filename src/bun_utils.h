@@ -1,16 +1,11 @@
 #ifndef BUN_UTILS_H
 #define BUN_UTILS_H
 
-
-//Compiler uses the #include to literally paste the content of bun.h into the bun_utils.h file before compiling.
 #include "bun.h"
 #include <stdbool.h>
 
 // -----------------------------------------------------------------------------
 // Overflow-safe arithmetic helpers.
-//
-// These are shared by Members 1 and 3 (for layout validation) and exposed
-// here so tests can exercise them directly without pulling in parser state.
 // -----------------------------------------------------------------------------
 
 
@@ -134,4 +129,18 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
 void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
+
+int seek_u64(FILE *file, u64 offset);
+
+
+bool name_range_safe(const BunHeader *header, const BunAssetRecord *rec);
+
+
+bool data_range_safe(const BunHeader *header, const BunAssetRecord *rec);
+
+
+size_t rle_decode_prefix(const u8 *input,
+                                size_t input_len,
+                                u8 *output,
+                                size_t output_cap);
 #endif

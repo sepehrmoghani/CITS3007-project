@@ -93,8 +93,8 @@ typedef struct {
 
 
 typedef struct {
-    FILE *file;               // open file handle
-    long file_size;           // total file size in bytes
+    FILE *file;
+    long file_size;
     int header_loaded;
 
     // error handling
@@ -159,7 +159,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header);
 bun_result_t bun_close(BunParseContext *ctx);
 
 /*
- * ---------------------
  * Determines the overall parsing result from the parser context.
  * This function inspects the error flags recorded in the context and
  * returns the most severe result encountered during parsing.

@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "bun.h"
+#include "bun_utils.h"
 
 
 // Default prefix length: the brief asks for "approximately the first 60
@@ -79,8 +80,28 @@ void bun_hex_dump(FILE *out, const unsigned char *buf, size_t len,
 void bun_print_payload_snippet(FILE *out, const unsigned char *buf,
                                size_t len, size_t max_bytes);
 
+
+//Prints the decoded header to Stdout or anyother filestream that gets passed.
+//Nothing is validated only printed.
 void bun_print_header(FILE *out, const BunHeader *header);
+
+
+//Prints one asset record.
+//Name Offset, Name Length, Data Offset, Data Size, Compression, Type, Checksum, Flags.
 void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index);
+
+
+//All stored errors are printed.
+//If errors are added the function displays them.
 void bun_print_errors(FILE *out, const BunParseContext *ctx);
 
-#endif // BUN_OUTPUT_H
+void print_asset_payload_snippet(BunParseContext *ctx,
+                                        const BunHeader *header,
+                                        const BunAssetRecord *rec);
+
+
+void print_asset_name_snippet(BunParseContext *ctx,
+                                     const BunHeader *header,
+                                     const BunAssetRecord *rec);
+
+#endif

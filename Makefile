@@ -16,7 +16,7 @@
 
 CC       = gcc
 # Base flags: C11, warnings, and implicit-fallthrough/implicit-function-decl
-# promoted to hard errors (Member 3 wants these on from the start).
+# promoted to hard errors
 CFLAGS   = -std=c11 -Wall -Wextra -Wpedantic \
            -Wshadow -Wconversion -Wstrict-prototypes \
            -Wwrite-strings -Wpointer-arith -Wcast-align \
@@ -30,10 +30,11 @@ LDFLAGS  =
 SAN_FLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
 
 # Source groups.
-#   LIB    - parser library (no main()). Grows as members 1-3 land code.
-#   MAIN   - the CLI entry point
-#   OUTPUT - Member 4 secondary contribution: printable-ASCII/hex-dump helpers
-#   TEST   - libcheck unit tests
+#   SRC_DIR - source directory for parser code
+#   LIB     - parser library (no main()). Grows as members 1-3 land code.
+#   MAIN    - the CLI entry point
+#   OUTPUT  - Member 4 secondary contribution: printable-ASCII/hex-dump helpers
+#   TEST    - libcheck unit tests
 SRC_DIR  = src
 LIB      = $(SRC_DIR)/bun_parse.c \
            $(SRC_DIR)/bun_output.c \

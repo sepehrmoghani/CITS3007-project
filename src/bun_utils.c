@@ -1,8 +1,10 @@
 #include "bun_utils.h"
 
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <limits.h>
 
 
 // -----------------------------------------------------------------------------
@@ -273,4 +275,49 @@ void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...) {
     (void)vsnprintf(ctx->errors[ctx->error_count], MAX_ERROR_LEN, fmt, args);
     va_end(args);
     ctx->error_count++;
+}
+
+
+size_t rle_decode_prefix(const u8 *input,
+                                size_t input_len,
+                                u8 *output,
+                                size_t output_cap) {
+  size_t out_pos = 0u;
+
+  for (size_t i = 0u; i + 1u < input_len && out_pos < output_cap; i += 2u) {
+    u8 count = input[i];
+    u8 value = input[i + 1u];
+    u8 j;
+
+    if (count == 0u) {
+      break;
+    }
+    for (j = 0u; j < count && out_pos < output_cap; j++) {
+      output[out_pos++] = value;
+    }
+  }
+  return out_pos;
+}
+
+
+int seek_u64(FILE *file, u64 offset) {
+  if (file == NULL || offset > (u64)LONG_MAX) {
+    return -1;
+  }
+  return fseek(file, (long)offset, SEEK_SET);
+}
+
+
+bool name_range_safe(const BunHeader *header, const BunAssetRecord *rec) {
+  u64 end = 0u;
+  return rec->name_length > 0u
+      && bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &end)
+      && end <= header->string_table_size;
+}
+
+
+bool data_range_safe(const BunHeader *header, const BunAssetRecord *rec) {
+  u64 end = 0u;
+  return bun_u64_add(rec->data_offset, rec->data_size, &end)
+      && end <= header->data_section_size;
 }

@@ -1,5 +1,5 @@
 // -----------------------------------------------------------------------------
-// test_bun.c - libcheck unit tests for the Group 22 bun parser.
+// test_bun.c - libcheck unit tests for the bun parser.
 //
 // Coverage:
 //   - Output helpers from bun_output.{c,h}      (complete - passes now)
@@ -7,18 +7,11 @@
 //   - Header parsing via bun_parse_header()     (uses valid + invalid fixtures)
 //   - Asset parsing via bun_parse_assets()      (uses valid fixtures)
 //
-// The header/asset tests will *fail* against the Day-0 skeleton in bun_parse.c;
-// that is expected. As Members 1-3 implement the parser, previously red
-// tests will go green. See tests/run_e2e.sh for exit-code-only CLI coverage
-// that complements this file.
-//
 // Conventions:
 //   - Each behaviour gets its own START_TEST block (no shared state).
 //   - Fixtures are looked up relative to the project root, which is the CWD
 //     when `make test` is invoked (see the Makefile rule).
 //   - Test names are test_<area>_<case>.
-//
-// Author: Group 22, Member 4.
 // -----------------------------------------------------------------------------
 
 #define _POSIX_C_SOURCE 200809L
@@ -195,7 +188,6 @@ END_TEST
 
 // -----------------------------------------------------------------------------
 // Header parsing - valid fixtures
-// (These require Member 1's bun_parse_header() to be implemented.)
 // -----------------------------------------------------------------------------
 
 START_TEST(test_header_valid_empty) {
@@ -274,7 +266,6 @@ END_TEST
 
 // -----------------------------------------------------------------------------
 // Asset parsing - valid fixtures
-// (Depend on Member 2's bun_parse_assets() implementation.)
 // -----------------------------------------------------------------------------
 
 START_TEST(test_assets_valid_multiple) {

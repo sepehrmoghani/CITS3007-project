@@ -39,7 +39,14 @@ else
   FIXTURE=tests/fixtures/large.bun
 fi
 
-size=$(stat -c%s "$FIXTURE")
+if stat --version >/dev/null 2>&1; then
+  # GNU stat (Linux)
+  size=$(stat -c%s "$FIXTURE")
+else
+  # BSD stat (macOS)
+  size=$(stat -f%z "$FIXTURE")
+fi
+
 size_mib=$(( size / 1024 / 1024 ))
 echo "Running $PROG on $FIXTURE ($size_mib MiB)..."
 echo "Memory budget: $MAX_RSS_KIB KiB ($(( MAX_RSS_KIB / 1024 )) MiB)"
