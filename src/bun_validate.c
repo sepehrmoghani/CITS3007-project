@@ -231,7 +231,6 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
     }
 
     uint8_t buffer[4096];
-    size_t bytes_read;
 
     size_t remaining = rec->data_size;
     u64 global_pos = rec->data_size - remaining;
@@ -242,7 +241,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
             to_read = remaining;
         }
 
-        bytes_read = fread(buffer, 1, to_read, ctx->file);
+        size_t bytes_read = fread(buffer, 1, to_read, ctx->file);
 
         if (bytes_read != to_read) {
             add_error(ctx, BUN_MALFORMED,

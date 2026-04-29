@@ -200,7 +200,6 @@ void print_asset_payload_snippet(BunParseContext *ctx,
   u64 absolute = 0u;
   size_t want;
   u8 input[PAYLOAD_SNIPPET_BYTES * 2u];
-  u8 decoded[PAYLOAD_SNIPPET_BYTES];
 
   fputs("payload snippet:\n", stdout);
   if (!data_range_safe(header, rec)
@@ -216,6 +215,7 @@ void print_asset_payload_snippet(BunParseContext *ctx,
   }
 
   if (rec->compression == BUN_COMPRESSION_RLE) {
+    u8 decoded[PAYLOAD_SNIPPET_BYTES];
     want = rec->data_size < sizeof(input) ? (size_t)rec->data_size : sizeof(input);
     if (fread(input, 1u, want, ctx->file) != want) {
       fputs("  <read failed>\n", stdout);
