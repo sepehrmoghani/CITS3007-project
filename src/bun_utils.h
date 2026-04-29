@@ -48,6 +48,25 @@ bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
  * @return true if valid, false otherwise
  *
  * Internally uses safe_add_u64 to avoid overflow.
+ * -----------------------
+ * Verifies that a byte range lies completely within the bounds of the file.
+ *
+ * Parameters:
+ *   offset     - starting byte position
+ *   size       - length of the range
+ *   file_size  - total file size
+ *
+ * The function checks:
+ *   1. file_size is non-negative
+ *   2. offset + size does not overflow (using bun_u64_add)
+ *   3. offset + size <= file_size
+ *
+ * Returns:
+ *   true if the range is valid and within the file bounds
+ *   false otherwise
+ *
+ * This prevents reading beyond the end of the file, which could lead
+ * to undefined behaviour or security vulnerabilities.
  */
 bool check_range_within_file(u64 offset, u64 size, long file_size);
 
@@ -58,7 +77,7 @@ bool check_range_within_file(u64 offset, u64 size, long file_size);
 * The least significant byte is stored first in memory.
 *
 * Example:
-*   bytes: [0x34, 0x12] → value = 0x1234
+*   bytes: [0x34, 0x12] , value = 0x1234
 *
 * This is used to decode fields from the BUN file format,
 * which stores all multi-byte integers in little-endian order.
@@ -108,6 +127,37 @@ u64 read_u64_le(const u8 *buf, size_t offset);
  * - output size matches expected_size exactly
  *
  * Does NOT allocate memory; caller must provide output buffer.
+ * --------------
+ * Decompresses data encoded using Run-Length Encoding (RLE).
+ *
+ * The input consists of (count, value) byte pairs:
+ *   count  number of repetitions
+ *   value  byte to repeat
+ *
+ * Example:
+ *   [3, 'A']  "AAA"
+ *
+ * Parameters:
+ *   input          - pointer to compressed data
+ *   input_size     - size of compressed data (must be even)
+ *   output         - destination buffer (may be NULL if only validating)
+ *   expected_size  - expected size after decompression
+ *
+ * Checks performed:
+ *
+ * 1. input_size must be even (pairs of count/value)
+ * 2. count must not be zero
+ * 3. decompressed size must not exceed expected_size
+ * 4. final decompressed size must equal expected_size
+ *
+ * If output is non-NULL, decompressed bytes are written to it.
+ *
+ * Returns:
+ *   BUN_OK if decompression is valid and matches expected size
+ *   BUN_MALFORMED otherwise
+ *
+ * This function ensures RLE data is structurally valid and prevents
+ * buffer overflows or incorrect decoding.
  */
 bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size);
 
@@ -130,6 +180,32 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
  *
  * This function does not perform any I/O; error messages must be
  * printed by another function.
+ * ---------
+ * Records an error message in the parser context.
+ *
+ * Parameters:
+ *   ctx   - parser context
+ *   code  - error type (BUN_MALFORMED or BUN_UNSUPPORTED)
+ *   fmt   - printf-style format string for the error message
+ *   ...   - additional arguments for formatting
+ *
+ * Behaviour:
+ *
+ * 1. Updates context flags:
+ *    - Sets ctx->saw_malformed if code is BUN_MALFORMED
+ *    - Sets ctx->saw_unsupported if code is BUN_UNSUPPORTED
+ *
+ * 2. Stores a formatted error message in ctx->errors[],
+ *    provided the maximum error limit has not been reached.
+ *
+ * 3. Increments ctx->error_count
+ *
+ * This allows the parser to:
+ *   - collect multiple errors safely
+ *   - report all detected issues
+ *   - determine the final exit code after parsing
+ *
+ * If the maximum number of errors is reached, additional errors are ignored.
  */
 void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
