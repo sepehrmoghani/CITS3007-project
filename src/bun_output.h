@@ -1,3 +1,10 @@
+// Group 22:
+// Name:                     Student Num:    Github Username:
+// Rayan Ramaprasad          24227537        24227537
+// Abinandh Radhakrishnan    23689813        abxsnxper
+// Campbell Henderson        24278297        phyric1
+// Sepehr Moghani Pilehroud  23642415        sepehrmoghani
+
 #ifndef BUN_OUTPUT_H
 #define BUN_OUTPUT_H
 
@@ -87,6 +94,7 @@ void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index);
 //All stored errors are printed.
 //If errors are added the function displays them.
 void bun_print_errors(FILE *out, const BunParseContext *ctx);
+
 
 void print_asset_payload_snippet(BunParseContext *ctx,
                                         const BunHeader *header,

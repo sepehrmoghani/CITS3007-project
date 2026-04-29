@@ -1,3 +1,9 @@
+# Group 22:
+# Name:                     Student Num:    Github Username:
+# Rayan Ramaprasad          24227537        24227537
+# Abinandh Radhakrishnan    23689813        abxsnxper
+# Campbell Henderson        24278297        phyric1
+# Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 # CITS3007 group 22 - bun_parser Makefile
 #
 # Required targets (per project brief):
