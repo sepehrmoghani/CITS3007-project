@@ -2,11 +2,11 @@
 title: "CITS3007 Secure Coding - Phase 1 Report"
 subtitle: "`bun_parser` - Group 22"
 author:
-  - Member 1 (_TBD_, _student#_, github: _TBD_)
-  - Member 2 (_TBD_, _student#_, github: _TBD_)
-  - Member 3 (_TBD_, _student#_, github: _TBD_)
-  - Sepehr Moghani (_student#_, github: `sepehrmoghani`)
-date: April 2026
+  - "Rayan Ramaprasad (24227537, github: 24227537)"
+  - "Abinandh Radhakrishnan (23689813, github: abxsnxper)"
+  - "Campbell Henderson (24278297, github: phyric1)"
+  - "Sepehr Moghani Pilehroud (23642415, github: sepehrmoghani)"
+date: 30th April 2026
 geometry: margin=2.5cm
 fontsize: 11pt
 toc: true
@@ -170,7 +170,35 @@ Every entry below points to an **actual finding** and a commit that fixed
 it; reviewers can reproduce them by checking out the "before" commit and
 running the reproduction command.
 
-### 4.1 AddressSanitizer + UndefinedBehaviorSanitizer
+### 4.3 - cppcheck static analysis
+
+- Command
+
+```bash 
+cppcheck --enable=all --std=c11 --inconclusive src
+```
+Issue - [#10](https://github.com/sepehrmoghani/CITS3007-project/issues/10)
+
+- Findings
+  - Variable scope warnings-
+      These variables are declared earlier than needed in the files
+    - bun_output.c — `decoded` scope can be reduced
+    - bun_validate.c — `bytes_read` scope can be reduced
+
+- Unused function warnings -
+These functions are defined but never called internally.
+    - bun_output.c— `bun_name_is_printable` is never used
+    - bun_utils.c — `bun_ranges_disjoint` is never used  
+    - bun_utils.c— `decompress_rle` is never used
+
+Fix Commits- 
+![](cppcheck.png)
+
+Fix Commits - [commit 405a6ab6893680fba8ec4ea6e5f90f3ea870dd9c](https://github.com/sepehrmoghani/CITS3007-project/pull/9/changes/405a6ab6893680fba8ec4ea6e5f90f3ea870dd9c) and [commit dd135a3205f12276b769915f4e74d43c005f39f7](https://github.com/sepehrmoghani/CITS3007-project/pull/9/changes/dd135a3205f12276b769915f4e74d43c005f39f7)
+
+
+
+### 4.2 AddressSanitizer + UndefinedBehaviorSanitizer
 
 - **How invoked:** `make asan && ./bun_parser tests/fixtures/<case>.bun`
 - **Findings:**
@@ -184,7 +212,7 @@ running the reproduction command.
     Fixed in commit <sha>.
   ```
 
-### 4.2 `gcc -fanalyzer`
+### 4.3 `gcc -fanalyzer`
 
 - **How invoked:** `gcc -std=c11 -Wall -fanalyzer -c bun_parse.c`
 - **Findings:**
@@ -192,7 +220,7 @@ running the reproduction command.
   TODO (member 3): issue reference + before/after commit.
   ```
 
-### 4.3 `clang-tidy` / `scan-build`
+### 4.4 `clang-tidy` / `scan-build`
 
 - **How invoked:** `sudo apt-get install clang-tools; scan-build make all`
 - **Findings:**
@@ -202,7 +230,7 @@ running the reproduction command.
   dead-store or similar).
   ```
 
-### 4.4 Fuzzing (optional)
+### 4.5 Fuzzing (optional)
 
 ```
 TODO (member 3): if we get time, run AFL++ on bun_parser against the
