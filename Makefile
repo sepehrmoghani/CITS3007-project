@@ -4,9 +4,8 @@
 # Abinandh Radhakrishnan    23689813        abxsnxper
 # Campbell Henderson        24278297        phyric1
 # Sepehr Moghani Pilehroud  23642415        sepehrmoghani
-# CITS3007 group 22 - bun_parser Makefile
 #
-# Required targets (per project brief):
+# Required targets:
 #   all        - build the bun_parser executable
 #   test       - run the test suite
 #
@@ -17,8 +16,7 @@
 #   memcheck   - run the large-file memory budget test
 #   sanity     - run the provided submission_sanity_checker.py
 #   clean      - remove build artifacts
-#
-# The two "official" targets (all, test) are intentionally listed first.
+
 
 CC       = gcc
 # Base flags: C11, warnings, and implicit-fallthrough/implicit-function-decl
@@ -37,9 +35,9 @@ SAN_FLAGS = -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
 
 # Source groups.
 #   SRC_DIR - source directory for parser code
-#   LIB     - parser library (no main()). Grows as members 1-3 land code.
+#   LIB     - parser library (no main()).
 #   MAIN    - the CLI entry point
-#   OUTPUT  - Member 4 secondary contribution: printable-ASCII/hex-dump helpers
+#   OUTPUT  - printable-ASCII/hex-dump helpers
 #   TEST    - libcheck unit tests
 SRC_DIR  = src
 LIB      = $(SRC_DIR)/bun_parse.c \

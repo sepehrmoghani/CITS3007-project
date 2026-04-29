@@ -50,19 +50,16 @@ static void print_usage(const char *progname) {
  *   BUN_ERR_INTERNAL  - internal parser misuse or unexpected state
  */
 int main(int argc, char *argv[]) {
-    const char *path;
     BunParseContext ctx;
     BunHeader header;
-    bun_result_t result;
-    bun_result_t close_result;
 
     if (argc != 2) {
         print_usage(argv[0]);
         return BUN_ERR_USAGE;
     }
 
-    path = argv[1];
-    result = bun_open(path, &ctx);
+        const char *path = argv[1];
+    bun_result_t result = bun_open(path, &ctx);
     if (result != BUN_OK) {
         fprintf(stderr, "Error: could not open or read '%s'\n", path);
         return (int)result;
@@ -86,7 +83,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "----------\nError: internal parser error\n");
     }
 
-    close_result = bun_close(&ctx);
+    bun_result_t close_result = bun_close(&ctx);
     if (close_result != BUN_OK && result == BUN_OK) {
         result = close_result;
     }

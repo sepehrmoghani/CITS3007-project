@@ -177,7 +177,6 @@ void print_asset_name_snippet(BunParseContext *ctx,
                                      const BunHeader *header,
                                      const BunAssetRecord *rec) {
   u64 absolute = 0u;
-  size_t want;
   u8 buf[NAME_SNIPPET_BYTES];
 
   fputs("name: ", stdout);
@@ -188,7 +187,7 @@ void print_asset_name_snippet(BunParseContext *ctx,
     return;
   }
 
-  want = rec->name_length < NAME_SNIPPET_BYTES ? (size_t)rec->name_length : NAME_SNIPPET_BYTES;
+  size_t want = rec->name_length < NAME_SNIPPET_BYTES ? (size_t)rec->name_length : NAME_SNIPPET_BYTES;
   if (want > 0u && fread(buf, 1u, want, ctx->file) != want) {
     fputs("<read failed>\n", stdout);
     return;
