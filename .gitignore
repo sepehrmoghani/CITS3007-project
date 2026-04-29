@@ -67,3 +67,4 @@ bun_parser
 tests/test_runner
 tests/fixtures/large/
 report/report.pdf
+.DS_Store
