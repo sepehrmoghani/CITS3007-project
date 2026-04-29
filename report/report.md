@@ -34,133 +34,288 @@ Submission checklist:
   [ ] report/report.pdf committed (but NOT the .md if anything embarrassing)
 -->
 
+# CITS3007 Secure Coding Phase 1 Report
+
 ## 1. Output format and exit codes
 
-> **_Section owner: Member 1_**
+### 1.1 Valid BUN files
 
-### 1.1 Valid files
+For a valid `.bun` file, `bun_parser` writes a human-readable representation of the file to standard output and exits with status code `0` (`BUN_OK`). The output is divided into two main parts:
 
-When the parser successfully validates a file it writes a human-readable
-summary to standard output. The summary has two blocks: the header, followed
-by one block per asset record.
+1. A `BUN Header` block.
+2. One `Asset Record` block for each asset entry in the asset table.
 
-```
-TODO (member 1): paste a real run of
-    ./bun_parser tests/fixtures/valid/02-single-uncompressed.bun
-here and describe the format briefly. The brief says each field in the header
-and each asset record must be represented, and that names/payloads may be
-truncated to ~60 bytes.
+The header block prints every field from the BUN header:
 
-Note for the format: we're rendering payloads as escaped text if the first
-64 bytes look printable, else as a classic hex dump. Helpers are in
-bun_output.{c,h}.
-```
-
-### 1.2 Invalid files
-
-For malformed / unsupported files, one violation per line is written to
-standard error, in the form:
-
-```
-bun_parser: <file>: <byte-offset>: <message>
+```text
+BUN Header
+----------
+magic: 0x304E5542
+version_major: 1
+version_minor: 0
+asset_count: 1
+asset_table_offset: 60
+string_table_offset: 108
+string_table_size: 8
+data_section_offset: 116
+data_section_size: 20
+reserved: 0
 ```
 
-followed by as much of the (still-parseable) content on stdout as can be
-safely displayed.
+Each asset record block prints every field from the corresponding asset table entry:
 
+```text
+Asset Record 0
+--------------
+name_offset: 0
+name_length: 5
+data_offset: 0
+data_size: 18
+uncompressed_size: 0
+compression: 0
+type: 1
+checksum: 0x00000000
+flags: 0x00000000
+name: "hello"
+payload snippet:
+  text: "Hello, BUN world!\n"
 ```
-TODO (member 1): paste a real run against
-    tests/fixtures/invalid/06-overlapping-sections.bun
-and
-    tests/fixtures/invalid/10-nonprintable-name.bun
-to demonstrate the violation-list format.
+
+Names and payloads can be long, so the parser does not print unbounded asset contents. Instead, it prints a bounded preview. Asset names are escaped before printing so that unusual bytes cannot affect the terminal. Asset payloads are shown as text when the preview appears to be printable ASCII. Otherwise, the payload is displayed as a short hexadecimal dump. This keeps output useful while preventing very large files from flooding the terminal.
+
+Example command:
+
+```bash
+./bun_parser tests/fixtures/valid/02-single-uncompressed.bun
+echo $?
 ```
+
+Expected exit status:
+
+```text
+0
+```
+
+### 1.2 Invalid or unsupported BUN files
+
+For invalid files, the parser writes as much of the safely parseable file as possible to standard output, then writes a list of detected violations to standard error. Each violation is printed on its own line. This follows the project requirement that invalid files should produce human-readable errors and report as many violations as can be safely detected.
+
+Example malformed file with overlapping sections:
+
+```bash
+./bun_parser tests/fixtures/invalid/06-overlapping-sections.bun
+echo $?
+```
+
+Example standard output:
+
+```text
+BUN Header
+----------
+magic: 0x304E5542
+version_major: 1
+version_minor: 0
+asset_count: 1
+asset_table_offset: 60
+string_table_offset: 76
+string_table_size: 16
+data_section_offset: 140
+data_section_size: 4
+reserved: 0
+```
+
+Example standard error:
+
+```text
+ERRORS
+------
+asset entry table overlaps string table
+```
+
+Expected exit status:
+
+```text
+1
+```
+
+Unsupported files are handled similarly, but exit with status code `2` (`BUN_UNSUPPORTED`). Examples of unsupported features in this implementation include zlib compression, non-zero checksum fields, and unknown flag bits.
 
 ### 1.3 Exit codes
 
-| Code | Name              | Meaning                                                |
-|------|-------------------|--------------------------------------------------------|
-| 0    | `BUN_OK`          | File parsed and validated successfully                 |
-| 1    | `BUN_MALFORMED`   | Spec violation found                                   |
-| 2    | `BUN_UNSUPPORTED` | Valid file, but uses zlib, checksum, or unknown flags  |
-| 3    | `BUN_ERR_IO`      | I/O error while reading (including "file not found")   |
-| 4    | `BUN_ERR_ARGS`    | Wrong number of CLI arguments (TODO member 1: confirm) |
-| 5-10 | -                 | Reserved for future use                                |
+The BUN specification defines the first three parser outcomes. Our implementation also defines extra application-level error codes for usage and I/O failures.
 
-The spec reserves 0-2 for parse outcomes and permits 3-10 for other errors;
-we have allocated 3 and 4 and kept 5-10 free.
+| Exit code | Name | Meaning |
+|---:|---|---|
+| `0` | `BUN_OK` | File was parsed and validated successfully. |
+| `1` | `BUN_MALFORMED` | File violates the BUN specification. |
+| `2` | `BUN_UNSUPPORTED` | File uses a valid but unsupported feature, such as zlib compression or checksum validation. |
+| `3` | `BUN_ERR_USAGE` | Incorrect command-line usage, such as the wrong number of arguments. |
+| `4` | `BUN_ERR_IO` | File open, read, seek, or close error. |
+| `5` | `BUN_ERR_INTERNAL` | Internal parser misuse or unexpected parser state. |
+| `6-10` | Reserved | Not currently used. |
+
+For example, running the parser without exactly one input file path prints a usage message to standard error and exits with `BUN_ERR_USAGE`.
+
+---
 
 ## 2. Decisions, assumptions, and integer safety
 
-> **_Section owner: Member 2 (integer-safety subsection: Member 3)_**
+### 2.1 Reading on-disk data
 
-### 2.1 Design decisions
+We did not directly cast bytes from the file into C structs using pointer casts. Although the BUN specification gives C-style struct definitions, the on-disk layout has no padding bytes and all multi-byte integers are little-endian. A C compiler may insert padding into in-memory structs, and direct casting from a byte buffer can also create alignment and strict-aliasing problems.
 
-```
-TODO (member 2):
+Instead, the parser reads fixed-size byte buffers and decodes fields explicitly. This makes the implementation independent of compiler padding decisions and ensures the parser interprets the file according to the exact BUN on-disk format.
 
-- Why we read fields individually rather than casting the on-disk bytes to
-  a struct pointer. (Struct padding, alignment, endianness.)
+### 2.2 Section ordering and gaps
 
-- How we handle section order. The spec allows any order after the header;
-  we sort the three non-header sections by offset before validating
-  overlap. See bun_parse.c::<function>.
+The canonical BUN layout is:
 
-- How we handle "gaps" between sections. The spec says the content is
-  unspecified for non-canonical files; we do not validate gap content.
-
-- How RLE decompression is implemented: streaming expansion into a bounded
-  output buffer so we don't allocate `uncompressed_size` bytes at once.
+```text
+Header
+Asset Entry Table
+String Table
+Data Section
 ```
 
-### 2.2 Assumptions
+However, the specification says only the header must appear first; the asset table, string table, and data section may appear in any order after the header. Therefore, our parser does not require canonical ordering. It validates the declared offsets and sizes, checks that every section lies within the file, and checks that no two sections overlap.
 
-```
-TODO (member 2): the one that will come up in the oral interview is how we
-interpret "asset names must be printable ASCII" (spec section 5 - we treat
-exactly the range 0x20..0x7E, no space-only names? yes or no? justify).
+The specification also allows gaps between sections and says their contents are unspecified. Therefore, our parser does not reject files just because there are unused bytes between sections, instead ignoring gap contents.
 
-Other likely judgement calls:
-- What happens if asset_count * 48 overflows when added to
-  asset_table_offset? We treat it as BUN_MALFORMED and report "asset table
-  extends past EOF".
-- When compression=0 but uncompressed_size != 0, we return BUN_MALFORMED
-  per spec section 5.1 note 1.
-- flags bits outside {ENCRYPTED, EXECUTABLE} -> BUN_UNSUPPORTED per spec
-  section 5.1 note 7.
+### 2.3 Asset table size
+
+The BUN header does not directly store the asset table size. The parser calculates it as:
+
+```text
+asset_table_size = asset_count * 48
 ```
 
-### 2.3 Integer safety
+where `48` is the on-disk size of one BUN asset record. Since `asset_count` is read from an untrusted file, this multiplication is checked for overflow before the result is used.
 
-> _Subsection owner: Member 3_
+If the multiplication overflows, the parser treats the file as malformed rather than allowing wraparound to produce a smaller size. This is important because otherwise a malicious file could use a huge `asset_count` that wraps to a small asset table size and bypasses bounds checks.
 
-All offset/size arithmetic on u32/u64 fields coming from disk uses
-overflow-safe helpers (`bun_u64_add`, `bun_u64_mul` in `bun_output.c`),
-which wrap `__builtin_add_overflow` / `__builtin_mul_overflow` with a
-portable fallback.
+### 2.4 Name validation
 
+Asset names are not null-terminated. Each asset record contains a `name_offset` and `name_length`, both relative to the string table. Our parser treats names as byte ranges, not C strings.
+
+The parser enforces the following rules:
+
+- `name_length` must be non-zero.
+- `name_offset + name_length` must fit inside the string table.
+- Every byte in the name must be printable ASCII in the range `0x20` to `0x7E`.
+
+We do not require asset names to be unique, because the BUN specification recommends uniqueness but does not require it. We also do not impose extra filename rules, such as banning `/`, `..`, or spaces, because the parser only displays asset metadata and does not extract files to disk.
+
+### 2.5 Data validation
+
+Asset data is validated using `data_offset` and `data_size`, both relative to the data section. The parser checks:
+
+```text
+data_offset + data_size <= data_section_size
 ```
-TODO (member 3): expand on the specific call sites that matter:
-  - asset_count * BUN_ASSET_RECORD_SIZE   (attacker-controlled u32)
-  - data_section_offset + data_offset     (u64 + u64, can still overflow)
-  - name_offset + name_length             (u32 + u32 - we widen to u64
-                                           before adding per spec 9.5)
-  - RLE count * expansion factor
-Attach one concrete example of a malicious input that would exploit the
-naive check and how our version catches it.
+
+This addition is also overflow-checked. If the sum overflows or exceeds the data section size, the file is malformed.
+
+For uncompressed assets, the parser requires:
+
+```text
+compression == 0
+uncompressed_size == 0
 ```
+
+This follows the BUN specification, where `uncompressed_size` is unused for uncompressed assets and must be zero.
+
+For RLE-compressed assets, the parser checks:
+
+- `data_size` must be even, because RLE data consists of `(count, byte)` pairs.
+- Each `count` byte must be non-zero.
+- The actual decompressed size must equal `uncompressed_size`.
+
+If decompression would exceed the expected output size, the file is treated as malformed. This prevents an attacker from causing unbounded expansion.
+
+### 2.6 Unsupported features
+
+Our parser supports:
+
+- compression `0`: no compression
+- compression `1`: RLE
+
+It does not support:
+
+- compression `2`: zlib
+- non-zero checksums
+- unknown flag bits
+
+When these features are encountered, the parser returns `BUN_UNSUPPORTED` rather than `BUN_MALFORMED`, because these features are valid according to the format but unsupported by this implementation.
+
+The allowed flag bits are:
+
+```c
+BUN_FLAG_ENCRYPTED  = 0x1
+BUN_FLAG_EXECUTABLE = 0x2
+```
+
+Any other flag bit causes `BUN_UNSUPPORTED`.
+
+### 2.7 Integer overflow and wraparound
+
+Integer overflow is a major concern because BUN files contain attacker-controlled offsets and sizes. If unchecked arithmetic wraps around, the parser may incorrectly believe that a section or asset lies inside the file when it actually extends beyond the end of the file.
+
+Our implementation uses overflow-safe helper functions for important arithmetic, including:
+
+- `asset_count * BUN_ASSET_RECORD_SIZE`
+- `section_offset + section_size`
+- `string_table_offset + name_offset`
+- `name_offset + name_length`
+- `data_section_offset + data_offset`
+- `data_offset + data_size`
+- RLE decompressed-size accumulation
+
+For example, a naive check like this is unsafe:
+
+```c
+if (offset + size <= file_size) {
+    /* assume safe */
+}
+```
+
+If `offset + size` wraps around, the result may become small and pass the check. Our parser instead checks whether the addition itself succeeded before comparing the result:
+
+```c
+u64 end;
+if (!bun_u64_add(offset, size, &end)) {
+    /* overflow: malformed */
+}
+if (end > file_size) {
+    /* out of bounds: malformed */
+}
+```
+
+This approach is necessary because all input fields in a `.bun` file are untrusted.
+
+---
 
 ## 3. Libraries used
 
-> **_Section owner: Member 2_**
+The final `bun_parser` executable has no third-party runtime dependencies. It links only against the standard C library.
 
-| Library          | Purpose                              | Why it's acceptable              |
-|------------------|--------------------------------------|----------------------------------|
-| `libcheck`       | Unit testing (link-time for `make test`) | Test-only, not shipped          |
-| _(runtime: none)_ | -                                   | Parser has no runtime deps      |
+| Library/tool | Used for | Runtime dependency? |
+|---|---|---|
+| C standard library | File I/O, integer types, formatted output, memory operations | Yes, standard environment |
+| `libcheck` | Unit tests run through `make test` | No, test-only |
+| Python 3 | Generating valid and invalid test fixtures | No, development/test-only |
+| `cppcheck` | Static analysis | No, development-only |
+| AddressSanitizer / UndefinedBehaviorSanitizer | Dynamic memory and undefined-behaviour testing | No, development-only |
+| GCC `-fanalyzer` | Static analysis of C code paths | No, development-only |
 
-The deployed `bun_parser` has no third-party runtime dependencies - it
-links only against libc.
+If `libcheck` is not installed on the CITS3007 SDE, it can be installed using:
+
+```bash
+sudo apt-get install check
+```
+
+The submitted parser does not require additional packages to run.
+
+---
 
 ## 4. Tools used
 This is a comprehensive list of all the tools used in order to identify any issues in our parser and test code. If any issues were found there will be an appropriate link the relevant commits, for reviewers to reproduce the issue and view the changes made to rectify the issue/s.
@@ -273,7 +428,7 @@ Fix Commits - N/A
 
 
 
-### 4.5 Fuzzing (optional)
+### 4.5 Fuzzing
 
 We used AFL++ (American Fuzzy Lop) to perform fuzz testing by generating random and malformed inputs to stress test the parser and uncover edge-case bugs.
 
@@ -300,92 +455,227 @@ Screenshots of Results:
 
 Fix Commits - N/A
 
-## 5. Security aspects - "Brutal Orc Battles In Space" deployment
+## 5. Security aspects: MMORPG deployment scenario
 
-> **_Section owner: Member 3_**
+Trinity management proposed deploying the parser inside the client for *Brutal Orc Battles In Space*, where the client automatically downloads BUN files from Trinity servers and parses them. This scenario significantly increases the security risk because the parser would process data received over a network and potentially data influenced by players.
 
+### 5.1 Threat model
+
+In this deployment, BUN files should be treated as untrusted input even if they appear to come from Trinity servers. Possible attackers include:
+
+- A network attacker who tampers with downloads if transport security is misconfigured.
+- A malicious player who uploads crafted player-created content.
+- An attacker who compromises Trinity's content delivery system.
+- A malicious modder distributing altered BUN files.
+- A bug in Trinity's asset-generation pipeline that accidentally produces malformed BUN files.
+
+Because the parser is written in C, malformed binary input could potentially trigger memory safety errors if validation is incomplete.
+
+### 5.2 Main security risks
+
+#### 5.2.1 Memory corruption
+
+A crafted file could attempt to exploit:
+
+- integer overflow in offset and size arithmetic
+- out-of-bounds reads
+- buffer overflows in name or payload previews
+- invalid seeks
+- decompression logic errors
+- excessive `asset_count` values
+
+If the game client parses files automatically, a successful memory corruption exploit could lead to client crashes or even arbitrary code execution.
+
+#### 5.2.2 Denial of service
+
+An attacker could create files designed to consume excessive CPU, memory, or disk I/O. Examples include:
+
+- huge `asset_count` values
+- extremely large section sizes
+- RLE data with very large claimed `uncompressed_size`
+- many small assets causing repeated seeks
+- deeply malformed files that generate many errors
+
+Even if memory corruption is avoided, denial of service could crash or freeze the game client.
+
+#### 5.2.3 Decompression abuse
+
+RLE compression can expand small input into much larger output. If the parser or game client fully decompresses assets into memory without limits, a malicious file could cause memory exhaustion. The risk would be greater if zlib support were added later, because zlib allows much stronger compression ratios and more complex decompression behaviour.
+
+#### 5.2.4 Executable or script content
+
+The BUN format includes an executable flag. If BUN files are used for player-created content, executable or script-like assets could become dangerous if later parts of the game engine load or run them without sandboxing.
+
+The parser itself should not execute asset data. However, the surrounding game client must ensure that executable content is either forbidden, signed, sandboxed, or reviewed before use.
+
+#### 5.2.5 Trust and authenticity
+
+If the client automatically downloads BUN files, it needs a way to verify that the file is authentic and has not been tampered with. Transport security such as HTTPS is useful but not enough by itself if the server, CDN, or update pipeline is compromised.
+
+### 5.3 Recommended parser changes
+
+For this deployment, we recommend the following parser-level changes:
+
+1. **Add configurable resource limits.**  
+   The client should impose maximum values for:
+   - file size
+   - asset count
+   - string table size
+   - data section size
+   - per-asset compressed size
+   - per-asset uncompressed size
+   - total decompressed bytes
+
+2. **Harden decompression.**  
+   RLE decompression should be streaming or bounded. It should stop immediately if the output would exceed the declared `uncompressed_size` or configured maximum output size.
+
+3. **Make unsupported features fail closed.**  
+   Unknown compression methods, unknown flags, non-zero checksums without checksum support, and future format versions should be rejected or quarantined rather than partially accepted.
+
+4. **Improve error reporting without exposing internals.**  
+   Developer builds can print detailed parse errors. Production clients should log enough information for debugging but avoid exposing unnecessary internal paths or memory details to users.
+
+5. **Fuzz the parser.**  
+   Before deployment, the parser should be fuzz-tested with tools such as libFuzzer or AFL++. Binary parsers are good fuzzing targets because many bugs only appear with unusual combinations of offsets, sizes, and truncated input.
+
+### 5.4 Recommended BUN format changes
+
+We also recommend changes to the BUN format or deployment rules:
+
+1. **Mandatory file-level signature.**  
+   Add a digital signature over the full BUN file or over a manifest. The client should verify the signature before parsing or loading assets. This helps ensure that only content produced or approved by Trinity is accepted.
+
+2. **Mandatory file-level hash.**  
+   Include a strong cryptographic hash such as SHA-256 for the whole file or for each asset. CRC-32 is useful for accidental corruption but is not designed to prevent malicious tampering.
+
+3. **Explicit format versioning policy.**  
+   The format should specify how future versions are handled. Clients should reject unsupported major versions and only accept minor versions when explicitly compatible.
+
+4. **Canonical layout for new files.**  
+   Although legacy parsers must support non-canonical files, new game-distributed files should use canonical layout. This makes validation easier and reduces edge cases.
+
+5. **Separate trusted official content from player content.**  
+   Player-created BUN files should be subject to stricter limits and should not be allowed to contain executable or script assets unless those scripts run in a sandbox.
+
+6. **Consider a manifest section.**  
+   A manifest could list asset names, types, sizes, hashes, and permissions in one place. This would allow the client to validate intended contents before loading expensive data sections.
+
+## 6. Coding standards and conventions
+
+Our group adopted the following coding standards and conventions.
+
+### 6.1 C standard and portability
+
+The parser is written in C11 and is intended to compile on the CITS3007 standard development environment using GCC. Fixed-width integer types from `<stdint.h>` are used for file-format fields so that the code matches the BUN specification.
+
+### 6.2 Naming conventions
+
+We used consistent naming to distinguish project code from standard library functions:
+
+- public parser functions use the prefix `bun_`
+- constants use uppercase names, for example `BUN_MAGIC`
+- structs and typedefs use clear BUN-related names
+- local variables use lower_snake_case
+
+Example:
+
+```c
+bool bun_u64_add(u64 a, u64 b, u64 *out);
 ```
-TODO (member 3): the brief asks us to reason about shipping this parser
-inside an MMO client that auto-downloads .bun files from Trinity's servers.
-Key threats to address:
 
-  1. Supply-chain / MITM: what happens if a .bun is tampered with in transit.
-     (CRC-32 in the format is not a security primitive. Suggest adding a
-     signature over the whole file, e.g. Ed25519.)
+### 6.3 File organisation
 
-  2. Malicious server / compromised player-UGC: crafted .bun files trying
-     to exploit the parser. Parser must treat every byte as adversarial.
-     Memory safety via our sanitizer sweep and bounds/overflow checks.
+The codebase is split into small modules by responsibility:
 
-  3. Amplification: RLE can expand 2 bytes -> 510 bytes. Payloads claiming
-     huge uncompressed_size could exhaust memory. We enforce a cap.
+| File | Responsibility |
+|---|---|
+| `main.c` | Command-line argument handling and top-level program flow |
+| `bun_parse.c` | Reading and decoding BUN headers and asset records |
+| `bun_validate.c` | Validation of header, sections, names, asset data, and compression rules |
+| `bun_output.c` | Human-readable output formatting |
+| `bun_utils.c` | Shared helpers such as checked arithmetic and range checks |
+| `bun.h` | Common types, constants, and declarations |
 
-  4. Encryption flag: spec leaves what "encrypted" means up to the client.
-     Recommend specifying a MAC'd encryption scheme in the format to
-     prevent oracle attacks.
+This separation made the parser easier to review and helped the group divide work between members.
 
-  5. Executable flag: spec lets assets be marked executable. Downloading
-     a .bun from another player and running an "executable" asset without
-     sandboxing is game-over. Recommend dropping the EXECUTABLE flag from
-     the spec or at least requiring signed assets for it.
+### 6.4 Memory management
 
-Recommendations we would make:
-  - Add a signature section (e.g. detached Ed25519 over everything).
-  - Drop or restrict BUN_FLAG_EXECUTABLE.
-  - Strengthen CRC-32 to a cryptographic hash when checksum != 0.
-  - Specify a maximum uncompressed_size per asset.
-  - Client should sandbox the parser (seccomp / unprivileged subprocess).
-```
+We followed these memory-management rules:
 
-## 6. Coding standards
+- Prefer stack buffers for fixed-size records.
+- Avoid reading the whole file into memory.
+- Allocate only when necessary.
+- Check every allocation before use.
+- Free every allocation on all paths.
+- Do not store pointers to temporary buffers after the buffer goes out of scope.
+- Treat file data as byte arrays, not null-terminated strings.
 
-> **_Section owner: Member 4_**
+### 6.5 Pointer and arithmetic rules
 
-We adopted the following conventions for the codebase; the full rationale
-is recorded in `HACKING.md`.
+Because this is a binary parser, pointer and arithmetic mistakes are security-sensitive. We followed the following rules:
 
-- **Language:** C11, `-std=c11 -Wall -Wextra -Wpedantic -Wshadow -Wconversion
-  -Wstrict-prototypes -Wformat=2`; sanitizer builds additionally enable
-  `-fsanitize=address,undefined`.
-- **Layout:** 2-space indent, K&R braces, 100-col lines, `UpperCamelCase`
-  for types and `snake_case` for functions and variables. Public parser
-  entry points are prefixed `bun_`.
-- **Module boundaries:**
-  - `bun.h` holds the public API and on-disk type definitions (sizes
-    enforced by `BUN_HEADER_SIZE == 60` and `BUN_ASSET_RECORD_SIZE == 48`
-    constants).
-  - `bun_parse.c` owns parsing and validation; it does **not** call
-    `printf` / `fprintf` - output is confined to `main.c`, which keeps
-    unit tests clean.
-  - `bun_output.c/.h` provides pure helpers (printability tests, hex
-    dumps, overflow-safe `u64` arithmetic) that both the parser and the
-    output path use.
-- **Memory:** no heap allocation proportional to file size; fixed stack
-  buffers sized to `BUN_HEADER_SIZE` and `BUN_ASSET_RECORD_SIZE`; all
-  offset/size arithmetic goes through `bun_u64_add` / `bun_u64_mul`.
-- **Untrusted input:** every byte read from the file is treated as
-  adversarial. Names are rendered via `bun_print_escaped`, which caps
-  output and escapes non-printable bytes.
-- **Tests:** libcheck suite organised into `output-helpers`, `overflow-helpers`,
-  `header`, `assets`, and `io` TCases; fixtures are machine-generated by
-  `tests/make_fixtures.py` and their expected exit codes recorded in
-  `tests/fixtures/expectations.tsv`.
+- Do not use unchecked pointer arithmetic for file offsets.
+- Do not cast arbitrary file bytes directly to structs.
+- Decode little-endian values explicitly.
+- Use checked arithmetic for all offset and size calculations.
+- Validate a section before reading from it.
+- Validate an asset's name and data range before reading that asset.
+- Use bounded printing for names and payloads.
+
+### 6.6 Error handling
+
+The parser attempts to report as many violations as can be safely detected. However, if a fault prevents safe parsing, such as a truncated header or an asset table outside the file, the parser stops before reading dependent structures.
+
+Errors are reported on standard error, one violation per line. Human-readable file content is printed on standard output.
+
+---
 
 ## 7. Challenges
 
-> **_Section owner: Member 4, collected from everyone_**
+### 7.1 Understanding binary layout
 
-```
-TODO (member 4): collect one or two bullet points from each member about
-what they found hard and how they addressed it. Keep this honest; the
-rubric explicitly asks about "impact if you were unable to address them".
+One challenge was understanding the difference between the C-style structures in the specification and the actual bytes stored on disk. The specification uses C structs for explanation, but the file format requires exact little-endian field ordering with no padding. We addressed this by writing explicit decode functions and avoiding direct struct casts.
 
-Representative headings so we don't overlap:
-  - (Member 1) Struct padding / alignment when reading from disk
-  - (Member 2) Deciding the RLE expansion strategy
-  - (Member 3) Getting ASan to catch the overflow case rather than just
-               "memory error" without specifics
-  - (Member 4) Writing tests that exercise spec-violation paths without
-               the parser existing yet (TDD on the skeleton)
-  - Logistical: coordinating on the shared `BunParseContext` fields.
-```
+### 7.2 Offset arithmetic and overflow
+
+A major challenge was validating offsets and sizes safely. At first, we checked ranges using expressions such as `offset + size <= file_size`. However, this is unsafe when `offset` and `size` are modified by an attacker as unsigned arithmetic can wrap around.
+
+We addressed this by adding checked arithmetic helpers and using them consistently before comparing calculated end offsets.
+
+### 7.3 Supporting non-canonical layout
+
+The BUN specification allows non-canonical section ordering for legacy compatibility. This made validation more complex because the parser could not assume that the asset table is followed by the string table and then the data section.
+
+We addressed this by representing each section as an `(offset, size)` range and checking all section pairs for overlap, regardless of order.
+
+### 7.4 Handling invalid files safely
+
+Invalid files may contain multiple faults, but some faults prevent safe further parsing. For example, if the asset table lies outside the file, the parser cannot safely read asset records to validate their names or data ranges.
+
+We addressed this by separating validation into stages. The parser first validates the header and section ranges. Only if those checks allow safe access does it validate each asset.
+
+### 7.5 RLE decompression validation
+
+RLE compression introduced extra validation rules. The parser must reject odd compressed sizes, zero-count pairs, and decompressed output that does not match `uncompressed_size`.
+
+We addressed this by validating compressed data before trusting it and by tracking the decompressed size with overflow checks.
+
+### 7.6 Group coordination
+
+The project required several related tasks: parsing, validation, output formatting, compression checks, testing, and report writing. A challenge was making sure independently written code used the same return codes, error format, and assumptions.
+
+We addressed this by dividing responsibilities clearly and using shared constants and helper functions. Pull requests and issue tracking were used to coordinate changes.
+
+### 7.7 Evidence for tools
+
+The report requirement for tool evidence was challenging because it required proper evidence of issues being found and solved, but while developing, we didn't use the tools until the program was in a working state, by which point there was not many major issues to find.
+
+To address this, we ran a large array of different tools to find as many issues as possible, and recorded the results.
+
+---
+
+## 8. GenAI usage statement
+
+Generative AI was used to assist with report drafting as well as in improving code stucture, validation and safety of functions in all code files. All final content was reviewed and edited by group members. 
+
+---
