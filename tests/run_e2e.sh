@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# # Group 22:
+# Name:                     Student Num:    Github Username:
+# Rayan Ramaprasad          24227537        24227537
+# Abinandh Radhakrishnan    23689813        abxsnxper
+# Campbell Henderson        24278297        phyric1
+# Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 # -----------------------------------------------------------------------------
 # run_e2e.sh - end-to-end CLI tests for bun_parser.
 #
@@ -8,8 +14,6 @@
 #
 # Does NOT check output text - that is the domain of the libcheck unit tests
 # and (later) golden-file tests once the output format is pinned down.
-#
-# Author: Group 22, Member 4.
 # -----------------------------------------------------------------------------
 
 set -u

@@ -1,3 +1,9 @@
+# Group 22:
+# Name:                     Student Num:    Github Username:
+# Rayan Ramaprasad          24227537        24227537
+# Abinandh Radhakrishnan    23689813        abxsnxper
+# Campbell Henderson        24278297        phyric1
+# Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 #!/usr/bin/env python3
 """
 make_large_fixture.py - generate a large, well-formed .bun file on demand.
@@ -10,8 +16,6 @@ whose payload is `SIZE_MIB * 1024 * 1024` bytes of zeroes. Streamed to disk
 so the generator itself doesn't need to hold the file in memory.
 
 Used by memcheck_large.sh when no external fixture is supplied.
-
-Author: Group 22, Member 4.
 """
 from __future__ import annotations
 
