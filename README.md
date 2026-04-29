@@ -12,7 +12,7 @@ Repository: <https://github.com/sepehrmoghani/CITS3007-project>
 | Member 1 - File structure     | _TBD_ | _TBD_   | _TBD_  |
 | Member 2 - Asset parsing      | _TBD_ | _TBD_   | _TBD_  |
 | Member 3 - Compression/sec.   | _TBD_ | _TBD_   | _TBD_  |
-| Member 4 - Testing + report   | Sepehr Moghani | _TBD_ | `sepehrmoghani` |
+| Member 4 - Testing + report   | Sepehr Moghani | 23642415 | `sepehrmoghani` |
 
 (Replace the `_TBD_` cells before submission.)
 
