@@ -1,3 +1,10 @@
+// Group 22:
+// Name:                     Student Num:    Github Username:
+// Rayan Ramaprasad          24227537        24227537
+// Abinandh Radhakrishnan    23689813        abxsnxper
+// Campbell Henderson        24278297        phyric1
+// Sepehr Moghani Pilehroud  23642415        sepehrmoghani
+
 #ifndef BUN_OUTPUT_H
 #define BUN_OUTPUT_H
 
@@ -16,6 +23,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "bun.h"
+#include "bun_utils.h"
 
 
 // Default prefix length: the brief asks for "approximately the first 60
@@ -34,13 +42,6 @@
  * bun_name_is_printable() for name validation.
  */
 bool bun_is_printable_ascii(const unsigned char *buf, size_t len);
-
-
-/**
- * Return true iff every byte in `buf[0..len)` is in the BUN-name range
- * (0x20-0x7E inclusive) AND len > 0. This matches BUN spec section 5.
- */
-bool bun_name_is_printable(const unsigned char *buf, size_t len);
 
 
 /**
@@ -79,8 +80,29 @@ void bun_hex_dump(FILE *out, const unsigned char *buf, size_t len,
 void bun_print_payload_snippet(FILE *out, const unsigned char *buf,
                                size_t len, size_t max_bytes);
 
+
+//Prints the decoded header to Stdout or anyother filestream that gets passed.
+//Nothing is validated only printed.
 void bun_print_header(FILE *out, const BunHeader *header);
+
+
+//Prints one asset record.
+//Name Offset, Name Length, Data Offset, Data Size, Compression, Type, Checksum, Flags.
 void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index);
+
+
+//All stored errors are printed.
+//If errors are added the function displays them.
 void bun_print_errors(FILE *out, const BunParseContext *ctx);
 
-#endif // BUN_OUTPUT_H
+
+void print_asset_payload_snippet(BunParseContext *ctx,
+                                        const BunHeader *header,
+                                        const BunAssetRecord *rec);
+
+
+void print_asset_name_snippet(BunParseContext *ctx,
+                                     const BunHeader *header,
+                                     const BunAssetRecord *rec);
+
+#endif

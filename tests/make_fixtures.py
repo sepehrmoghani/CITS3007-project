@@ -1,3 +1,9 @@
+# Group 22:
+# Name:                     Student Num:    Github Username:
+# Rayan Ramaprasad          24227537        24227537
+# Abinandh Radhakrishnan    23689813        abxsnxper
+# Campbell Henderson        24278297        phyric1
+# Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 #!/usr/bin/env python3
 """
 make_fixtures.py - Generate the full set of valid and malformed .bun test
@@ -13,8 +19,6 @@ on Moodle).
 
 Re-uses the low-level writers from ../bunfile_generator.py so the on-disk
 format stays in sync with the authoritative reference writer.
-
-Author: Group 22, Member 4.
 """
 
 from __future__ import annotations

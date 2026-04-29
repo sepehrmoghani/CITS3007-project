@@ -1,5 +1,11 @@
+// Group 22:
+// Name:                     Student Num:    Github Username:
+// Rayan Ramaprasad          24227537        24227537
+// Abinandh Radhakrishnan    23689813        abxsnxper
+// Campbell Henderson        24278297        phyric1
+// Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 // -----------------------------------------------------------------------------
-// test_bun.c - libcheck unit tests for the Group 22 bun parser.
+// test_bun.c - libcheck unit tests for the bun parser.
 //
 // Coverage:
 //   - Output helpers from bun_output.{c,h}      (complete - passes now)
@@ -7,18 +13,11 @@
 //   - Header parsing via bun_parse_header()     (uses valid + invalid fixtures)
 //   - Asset parsing via bun_parse_assets()      (uses valid fixtures)
 //
-// The header/asset tests will *fail* against the Day-0 skeleton in bun_parse.c;
-// that is expected. As Members 1-3 implement the parser, previously red
-// tests will go green. See tests/run_e2e.sh for exit-code-only CLI coverage
-// that complements this file.
-//
 // Conventions:
 //   - Each behaviour gets its own START_TEST block (no shared state).
 //   - Fixtures are looked up relative to the project root, which is the CWD
 //     when `make test` is invoked (see the Makefile rule).
 //   - Test names are test_<area>_<case>.
-//
-// Author: Group 22, Member 4.
 // -----------------------------------------------------------------------------
 
 #define _POSIX_C_SOURCE 200809L
@@ -95,29 +94,6 @@ START_TEST(test_output_printable_rejects_nul) {
 }
 END_TEST
 
-// -----------------------------------------------------------------------------
-// Output helpers: name_is_printable (stricter: no whitespace, non-empty)
-// -----------------------------------------------------------------------------
-
-START_TEST(test_output_name_rejects_empty) {
-    ck_assert(!bun_name_is_printable(NULL, 0));
-    ck_assert(!bun_name_is_printable((const unsigned char *)"", 0));
-}
-END_TEST
-
-START_TEST(test_output_name_rejects_tab) {
-    const unsigned char s[] = { 'a', '\t', 'b' };
-    ck_assert(!bun_name_is_printable(s, sizeof(s)));
-}
-END_TEST
-
-START_TEST(test_output_name_accepts_all_printable) {
-    // 0x20-0x7E range
-    unsigned char s[0x7F - 0x20];
-    for (size_t i = 0; i < sizeof(s); ++i) s[i] = (unsigned char)(0x20 + i);
-    ck_assert(bun_name_is_printable(s, sizeof(s)));
-}
-END_TEST
 
 // -----------------------------------------------------------------------------
 // Output helpers: escaped printing
@@ -183,19 +159,10 @@ START_TEST(test_overflow_mul_detects) {
 }
 END_TEST
 
-START_TEST(test_overflow_ranges_disjoint) {
-    // [0,10) vs [10,20)  -> disjoint (touching edges don't overlap)
-    ck_assert(bun_ranges_disjoint(0, 10, 10, 10));
-    // [0,10) vs [9,20)   -> overlap
-    ck_assert(!bun_ranges_disjoint(0, 10, 9, 10));
-    // [0,0) vs [0,10)    -> zero-length is disjoint from anything
-    ck_assert(bun_ranges_disjoint(0, 0, 0, 10));
-}
-END_TEST
+
 
 // -----------------------------------------------------------------------------
 // Header parsing - valid fixtures
-// (These require Member 1's bun_parse_header() to be implemented.)
 // -----------------------------------------------------------------------------
 
 START_TEST(test_header_valid_empty) {
@@ -274,7 +241,6 @@ END_TEST
 
 // -----------------------------------------------------------------------------
 // Asset parsing - valid fixtures
-// (Depend on Member 2's bun_parse_assets() implementation.)
 // -----------------------------------------------------------------------------
 
 START_TEST(test_assets_valid_multiple) {
@@ -404,9 +370,6 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_out, test_output_printable_plain_text);
     tcase_add_test(tc_out, test_output_printable_rejects_high_bytes);
     tcase_add_test(tc_out, test_output_printable_rejects_nul);
-    tcase_add_test(tc_out, test_output_name_rejects_empty);
-    tcase_add_test(tc_out, test_output_name_rejects_tab);
-    tcase_add_test(tc_out, test_output_name_accepts_all_printable);
     tcase_add_test(tc_out, test_output_print_escaped_plain);
     tcase_add_test(tc_out, test_output_print_escaped_hex);
     tcase_add_test(tc_out, test_output_print_escaped_truncates);
@@ -416,7 +379,6 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_ov, test_overflow_add_ok);
     tcase_add_test(tc_ov, test_overflow_add_detects);
     tcase_add_test(tc_ov, test_overflow_mul_detects);
-    tcase_add_test(tc_ov, test_overflow_ranges_disjoint);
     suite_add_tcase(s, tc_ov);
 
     TCase *tc_hdr = tcase_create("header");

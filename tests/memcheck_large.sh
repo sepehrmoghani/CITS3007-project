@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# # Group 22:
+# Name:                     Student Num:    Github Username:
+# Rayan Ramaprasad          24227537        24227537
+# Abinandh Radhakrishnan    23689813        abxsnxper
+# Campbell Henderson        24278297        phyric1
+# Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 # -----------------------------------------------------------------------------
 # memcheck_large.sh - verify that bun_parser uses sub-linear memory on a
 # large, well-formed .bun file.
@@ -14,8 +20,6 @@
 #
 # For the project's 638 MB Moodle sample, set BUN_LARGE_FIXTURE to its path:
 #   BUN_LARGE_FIXTURE=~/Downloads/large.bun make memcheck
-#
-# Author: Group 22, Member 4.
 # -----------------------------------------------------------------------------
 
 set -euo pipefail
@@ -39,7 +43,14 @@ else
   FIXTURE=tests/fixtures/large.bun
 fi
 
-size=$(stat -c%s "$FIXTURE")
+if stat --version >/dev/null 2>&1; then
+  # GNU stat (Linux)
+  size=$(stat -c%s "$FIXTURE")
+else
+  # BSD stat (macOS)
+  size=$(stat -f%z "$FIXTURE")
+fi
+
 size_mib=$(( size / 1024 / 1024 ))
 echo "Running $PROG on $FIXTURE ($size_mib MiB)..."
 echo "Memory budget: $MAX_RSS_KIB KiB ($(( MAX_RSS_KIB / 1024 )) MiB)"

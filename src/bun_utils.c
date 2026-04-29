@@ -1,8 +1,16 @@
+// Group 22:
+// Name:                     Student Num:    Github Username:
+// Rayan Ramaprasad          24227537        24227537
+// Abinandh Radhakrishnan    23689813        abxsnxper
+// Campbell Henderson        24278297        phyric1
+// Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 #include "bun_utils.h"
 
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <limits.h>
 
 
 // -----------------------------------------------------------------------------
@@ -49,17 +57,6 @@ bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out) {
     return true;
 }
 
-bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
-                            uint64_t b_off, uint64_t b_size) {
-    // Zero-length ranges never overlap anything.
-    if (a_size == 0 || b_size == 0) {
-    return true;
-    }
-    uint64_t a_end, b_end;
-    if (!bun_u64_add(a_off, a_size, &a_end)) return false;
-    if (!bun_u64_add(b_off, b_size, &b_end)) return false;
-    return (a_end <= b_off) || (b_end <= a_off);
-}
 
 
 bool check_range_within_file(u64 offset, u64 size, long file_size) {
@@ -105,40 +102,6 @@ u64 read_u64_le(const u8 *buf, size_t offset) {
 
 
 
-bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size) {
-    u64 out_pos = 0u;
-    u64 i = 0u;
-
-    if ((input_size % 2u) != 0u) {
-        return BUN_MALFORMED;
-    }
-
-    while (i < input_size) {
-        u8 count = input[i];
-        u8 value = input[i + 1u];
-        u64 j;
-
-        if (count == 0u) {
-            return BUN_MALFORMED;
-        }
-        if (out_pos > expected_size || (u64)count > expected_size - out_pos) {
-            return BUN_MALFORMED;
-        }
-
-        for (j = 0u; j < (u64)count; j++) {
-            if (output != NULL) {
-                output[out_pos] = value;
-            }
-            out_pos++;
-        }
-        i += 2u;
-    }
-
-    return out_pos == expected_size ? BUN_OK : BUN_MALFORMED;
-}
-
-
-
 
 void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...) {
     va_list args;
@@ -161,4 +124,49 @@ void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...) {
     (void)vsnprintf(ctx->errors[ctx->error_count], MAX_ERROR_LEN, fmt, args);
     va_end(args);
     ctx->error_count++;
+}
+
+
+size_t rle_decode_prefix(const u8 *input,
+                                size_t input_len,
+                                u8 *output,
+                                size_t output_cap) {
+  size_t out_pos = 0u;
+
+  for (size_t i = 0u; i + 1u < input_len && out_pos < output_cap; i += 2u) {
+    u8 count = input[i];
+    u8 value = input[i + 1u];
+    u8 j;
+
+    if (count == 0u) {
+      break;
+    }
+    for (j = 0u; j < count && out_pos < output_cap; j++) {
+      output[out_pos++] = value;
+    }
+  }
+  return out_pos;
+}
+
+
+int seek_u64(FILE *file, u64 offset) {
+  if (file == NULL || offset > (u64)LONG_MAX) {
+    return -1;
+  }
+  return fseek(file, (long)offset, SEEK_SET);
+}
+
+
+bool name_range_safe(const BunHeader *header, const BunAssetRecord *rec) {
+  u64 end = 0u;
+  return rec->name_length > 0u
+      && bun_u64_add((u64)rec->name_offset, (u64)rec->name_length, &end)
+      && end <= header->string_table_size;
+}
+
+
+bool data_range_safe(const BunHeader *header, const BunAssetRecord *rec) {
+  u64 end = 0u;
+  return bun_u64_add(rec->data_offset, rec->data_size, &end)
+      && end <= header->data_section_size;
 }

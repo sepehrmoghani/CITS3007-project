@@ -1,16 +1,17 @@
+// Group 22:
+// Name:                     Student Num:    Github Username:
+// Rayan Ramaprasad          24227537        24227537
+// Abinandh Radhakrishnan    23689813        abxsnxper
+// Campbell Henderson        24278297        phyric1
+// Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 #ifndef BUN_UTILS_H
 #define BUN_UTILS_H
 
-
-//Compiler uses the #include to literally paste the content of bun.h into the bun_utils.h file before compiling.
 #include "bun.h"
 #include <stdbool.h>
 
 // -----------------------------------------------------------------------------
 // Overflow-safe arithmetic helpers.
-//
-// These are shared by Members 1 and 3 (for layout validation) and exposed
-// here so tests can exercise them directly without pulling in parser state.
 // -----------------------------------------------------------------------------
 
 
@@ -29,15 +30,7 @@ bool bun_u64_add(uint64_t a, uint64_t b, uint64_t *out);
 bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out);
 
 
-/**
- * Return true iff [a_off, a_off + a_size) and [b_off, b_off + b_size) are
- * disjoint, treating zero-length ranges as "touching but not overlapping"
- * (so they never conflict). Overflow in a_off + a_size or b_off + b_size
- * is treated as overlap (the caller should have validated bounds already
- * but this is defensive).
- */
-bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
-                         uint64_t b_off, uint64_t b_size);
+
 
 /**
  * Check whether a byte range lies fully within a file.
@@ -113,56 +106,6 @@ u64 read_u64_le(const u8 *buf, size_t offset);
 
 
 /**
- * Decompress RLE-encoded data.
- *
- * @param input Pointer to compressed data
- * @param input_size Size of compressed data in bytes
- * @param output Buffer for decompressed data
- * @param expected_size Expected size after decompression
- * @return BUN_OK on success, BUN_MALFORMED if invalid encoding
- *
- * Validates:
- * - input_size is even (pairs of count/value)
- * - count != 0 for all pairs
- * - output size matches expected_size exactly
- *
- * Does NOT allocate memory; caller must provide output buffer.
- * --------------
- * Decompresses data encoded using Run-Length Encoding (RLE).
- *
- * The input consists of (count, value) byte pairs:
- *   count  number of repetitions
- *   value  byte to repeat
- *
- * Example:
- *   [3, 'A']  "AAA"
- *
- * Parameters:
- *   input          - pointer to compressed data
- *   input_size     - size of compressed data (must be even)
- *   output         - destination buffer (may be NULL if only validating)
- *   expected_size  - expected size after decompression
- *
- * Checks performed:
- *
- * 1. input_size must be even (pairs of count/value)
- * 2. count must not be zero
- * 3. decompressed size must not exceed expected_size
- * 4. final decompressed size must equal expected_size
- *
- * If output is non-NULL, decompressed bytes are written to it.
- *
- * Returns:
- *   BUN_OK if decompression is valid and matches expected size
- *   BUN_MALFORMED otherwise
- *
- * This function ensures RLE data is structurally valid and prevents
- * buffer overflows or incorrect decoding.
- */
-bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size);
-
-
-/**
  * Record a parsing or validation error in the parse context.
  *
  * @param ctx  Pointer to the active BunParseContext
@@ -210,4 +153,18 @@ bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 exp
 void add_error(BunParseContext *ctx, bun_result_t code, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
+
+int seek_u64(FILE *file, u64 offset);
+
+
+bool name_range_safe(const BunHeader *header, const BunAssetRecord *rec);
+
+
+bool data_range_safe(const BunHeader *header, const BunAssetRecord *rec);
+
+
+size_t rle_decode_prefix(const u8 *input,
+                                size_t input_len,
+                                u8 *output,
+                                size_t output_cap);
 #endif

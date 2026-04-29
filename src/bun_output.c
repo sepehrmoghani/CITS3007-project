@@ -1,11 +1,9 @@
-// -----------------------------------------------------------------------------
-// bun_output - implementation.
-//
-// See bun_output.h for API documentation.
-//
-// Author: Group 22, Member 4.
-// -----------------------------------------------------------------------------
-
+// Group 22:
+// Name:                     Student Num:    Github Username:
+// Rayan Ramaprasad          24227537        24227537
+// Abinandh Radhakrishnan    23689813        abxsnxper
+// Campbell Henderson        24278297        phyric1
+// Sepehr Moghani Pilehroud  23642415        sepehrmoghani
 #include "bun_output.h"
 
 #include <ctype.h>
@@ -13,6 +11,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <inttypes.h>
+
+#define PAYLOAD_SNIPPET_BYTES 64u
+#define NAME_SNIPPET_BYTES 60u
 
 // -----------------------------------------------------------------------------
 // Printability
@@ -35,18 +36,6 @@ bool bun_is_printable_ascii(const unsigned char *buf, size_t len) {
   return true;
 }
 
-bool bun_name_is_printable(const unsigned char *buf, size_t len) {
-  if (len == 0 || buf == NULL) {
-    return false;
-  }
-  for (size_t i = 0; i < len; ++i) {
-    unsigned char c = buf[i];
-    if (c < 0x20 || c > 0x7E) {
-      return false;
-    }
-  }
-  return true;
-}
 
 // -----------------------------------------------------------------------------
 // Escaped / snippet output
@@ -133,13 +122,6 @@ void bun_print_payload_snippet(FILE *out, const unsigned char *buf,
 }
 
 
-//Prints the decoded header to Stdout or anyother filestream that gets passed.
-//Nothing is validated only printed.
-
-
-
-
-
 void bun_print_header(FILE *out, const BunHeader *header) {
     if (out == NULL || header == NULL) {
         return;
@@ -159,8 +141,6 @@ void bun_print_header(FILE *out, const BunHeader *header) {
     fprintf(out, "reserved: %" PRIu64 "\n", header->reserved);
 }
 
-//Prints one asset record.
-//Name Offset, Name Length, Data Offset, Data Size, Compression, Type, Checksum, Flags.
 
 void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index) {
     if (out == NULL || rec == NULL) {
@@ -180,8 +160,6 @@ void bun_print_asset_record(FILE *out, const BunAssetRecord *rec, u32 index) {
     fprintf(out, "flags: 0x%08" PRIX32 "\n", rec->flags);
 }
 
-//All stored errors are printed.
-//If errors are added the function displays them.
 
 void bun_print_errors(FILE *out, const BunParseContext *ctx) {
     if (out == NULL || ctx == NULL) {
@@ -192,4 +170,77 @@ void bun_print_errors(FILE *out, const BunParseContext *ctx) {
     for (int i = 0; i < ctx->error_count; i++) {
         fprintf(out, "%s\n", ctx->errors[i]);
     }
+}
+
+
+void print_asset_name_snippet(BunParseContext *ctx,
+                                     const BunHeader *header,
+                                     const BunAssetRecord *rec) {
+  u64 absolute = 0u;
+  size_t want;
+  u8 buf[NAME_SNIPPET_BYTES];
+
+  fputs("name: ", stdout);
+  if (!name_range_safe(header, rec)
+      || !bun_u64_add(header->string_table_offset, (u64)rec->name_offset, &absolute)
+      || seek_u64(ctx->file, absolute) != 0) {
+    fputs("<not safely readable>\n", stdout);
+    return;
+  }
+
+  want = rec->name_length < NAME_SNIPPET_BYTES ? (size_t)rec->name_length : NAME_SNIPPET_BYTES;
+  if (want > 0u && fread(buf, 1u, want, ctx->file) != want) {
+    fputs("<read failed>\n", stdout);
+    return;
+  }
+
+  fputc('"', stdout);
+  (void)bun_print_escaped(stdout, buf, (size_t)rec->name_length, NAME_SNIPPET_BYTES);
+  fputs("\"\n", stdout);
+}
+
+
+void print_asset_payload_snippet(BunParseContext *ctx,
+                                        const BunHeader *header,
+                                        const BunAssetRecord *rec) {
+  u64 absolute = 0u;
+  size_t want;
+  u8 input[PAYLOAD_SNIPPET_BYTES * 2u];
+
+  fputs("payload snippet:\n", stdout);
+  if (!data_range_safe(header, rec)
+      || !bun_u64_add(header->data_section_offset, rec->data_offset, &absolute)
+      || seek_u64(ctx->file, absolute) != 0) {
+    fputs("  <not safely readable>\n", stdout);
+    return;
+  }
+
+  if (rec->data_size == 0u) {
+    fputs("  (empty)\n", stdout);
+    return;
+  }
+
+  if (rec->compression == BUN_COMPRESSION_RLE) {
+    u8 decoded[PAYLOAD_SNIPPET_BYTES];
+    want = rec->data_size < sizeof(input) ? (size_t)rec->data_size : sizeof(input);
+    if (fread(input, 1u, want, ctx->file) != want) {
+      fputs("  <read failed>\n", stdout);
+      return;
+    }
+    want = rle_decode_prefix(input, want, decoded, sizeof(decoded));
+    bun_print_payload_snippet(stdout, decoded, want, PAYLOAD_SNIPPET_BYTES);
+    return;
+  }
+
+  if (rec->compression != BUN_COMPRESSION_NONE) {
+    fputs("  <unsupported compression; raw payload not displayed>\n", stdout);
+    return;
+  }
+
+  want = rec->data_size < PAYLOAD_SNIPPET_BYTES ? (size_t)rec->data_size : PAYLOAD_SNIPPET_BYTES;
+  if (fread(input, 1u, want, ctx->file) != want) {
+    fputs("  <read failed>\n", stdout);
+    return;
+  }
+  bun_print_payload_snippet(stdout, input, want, PAYLOAD_SNIPPET_BYTES);
 }
