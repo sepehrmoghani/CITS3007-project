@@ -88,29 +88,6 @@ START_TEST(test_output_printable_rejects_nul) {
 }
 END_TEST
 
-// -----------------------------------------------------------------------------
-// Output helpers: name_is_printable (stricter: no whitespace, non-empty)
-// -----------------------------------------------------------------------------
-
-START_TEST(test_output_name_rejects_empty) {
-    ck_assert(!bun_name_is_printable(NULL, 0));
-    ck_assert(!bun_name_is_printable((const unsigned char *)"", 0));
-}
-END_TEST
-
-START_TEST(test_output_name_rejects_tab) {
-    const unsigned char s[] = { 'a', '\t', 'b' };
-    ck_assert(!bun_name_is_printable(s, sizeof(s)));
-}
-END_TEST
-
-START_TEST(test_output_name_accepts_all_printable) {
-    // 0x20-0x7E range
-    unsigned char s[0x7F - 0x20];
-    for (size_t i = 0; i < sizeof(s); ++i) s[i] = (unsigned char)(0x20 + i);
-    ck_assert(bun_name_is_printable(s, sizeof(s)));
-}
-END_TEST
 
 // -----------------------------------------------------------------------------
 // Output helpers: escaped printing
@@ -176,15 +153,7 @@ START_TEST(test_overflow_mul_detects) {
 }
 END_TEST
 
-START_TEST(test_overflow_ranges_disjoint) {
-    // [0,10) vs [10,20)  -> disjoint (touching edges don't overlap)
-    ck_assert(bun_ranges_disjoint(0, 10, 10, 10));
-    // [0,10) vs [9,20)   -> overlap
-    ck_assert(!bun_ranges_disjoint(0, 10, 9, 10));
-    // [0,0) vs [0,10)    -> zero-length is disjoint from anything
-    ck_assert(bun_ranges_disjoint(0, 0, 0, 10));
-}
-END_TEST
+
 
 // -----------------------------------------------------------------------------
 // Header parsing - valid fixtures
@@ -395,9 +364,6 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_out, test_output_printable_plain_text);
     tcase_add_test(tc_out, test_output_printable_rejects_high_bytes);
     tcase_add_test(tc_out, test_output_printable_rejects_nul);
-    tcase_add_test(tc_out, test_output_name_rejects_empty);
-    tcase_add_test(tc_out, test_output_name_rejects_tab);
-    tcase_add_test(tc_out, test_output_name_accepts_all_printable);
     tcase_add_test(tc_out, test_output_print_escaped_plain);
     tcase_add_test(tc_out, test_output_print_escaped_hex);
     tcase_add_test(tc_out, test_output_print_escaped_truncates);
@@ -407,7 +373,6 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_ov, test_overflow_add_ok);
     tcase_add_test(tc_ov, test_overflow_add_detects);
     tcase_add_test(tc_ov, test_overflow_mul_detects);
-    tcase_add_test(tc_ov, test_overflow_ranges_disjoint);
     suite_add_tcase(s, tc_ov);
 
     TCase *tc_hdr = tcase_create("header");

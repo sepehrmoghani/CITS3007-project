@@ -30,18 +30,6 @@ bool bun_is_printable_ascii(const unsigned char *buf, size_t len) {
   return true;
 }
 
-bool bun_name_is_printable(const unsigned char *buf, size_t len) {
-  if (len == 0 || buf == NULL) {
-    return false;
-  }
-  for (size_t i = 0; i < len; ++i) {
-    unsigned char c = buf[i];
-    if (c < 0x20 || c > 0x7E) {
-      return false;
-    }
-  }
-  return true;
-}
 
 // -----------------------------------------------------------------------------
 // Escaped / snippet output

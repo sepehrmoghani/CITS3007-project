@@ -24,15 +24,7 @@ bool bun_u64_add(uint64_t a, uint64_t b, uint64_t *out);
 bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out);
 
 
-/**
- * Return true iff [a_off, a_off + a_size) and [b_off, b_off + b_size) are
- * disjoint, treating zero-length ranges as "touching but not overlapping"
- * (so they never conflict). Overflow in a_off + a_size or b_off + b_size
- * is treated as overlap (the caller should have validated bounds already
- * but this is defensive).
- */
-bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
-                         uint64_t b_off, uint64_t b_size);
+
 
 /**
  * Check whether a byte range lies fully within a file.
@@ -86,25 +78,6 @@ u32 read_u32_le(const u8 *buf, size_t offset);
  * such as section offsets and data sizes.
  */
 u64 read_u64_le(const u8 *buf, size_t offset);
-
-
-/**
- * Decompress RLE-encoded data.
- *
- * @param input Pointer to compressed data
- * @param input_size Size of compressed data in bytes
- * @param output Buffer for decompressed data
- * @param expected_size Expected size after decompression
- * @return BUN_OK on success, BUN_MALFORMED if invalid encoding
- *
- * Validates:
- * - input_size is even (pairs of count/value)
- * - count != 0 for all pairs
- * - output size matches expected_size exactly
- *
- * Does NOT allocate memory; caller must provide output buffer.
- */
-bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size);
 
 
 /**

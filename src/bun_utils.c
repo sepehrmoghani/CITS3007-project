@@ -51,17 +51,6 @@ bool bun_u64_mul(uint64_t a, uint64_t b, uint64_t *out) {
     return true;
 }
 
-bool bun_ranges_disjoint(uint64_t a_off, uint64_t a_size,
-                            uint64_t b_off, uint64_t b_size) {
-    // Zero-length ranges never overlap anything.
-    if (a_size == 0 || b_size == 0) {
-    return true;
-    }
-    uint64_t a_end, b_end;
-    if (!bun_u64_add(a_off, a_size, &a_end)) return false;
-    if (!bun_u64_add(b_off, b_size, &b_end)) return false;
-    return (a_end <= b_off) || (b_end <= a_off);
-}
 
 /*
  * -----------------------
@@ -156,73 +145,6 @@ u64 read_u64_le(const u8 *buf, size_t offset) {
                  ((u64)buf[offset + 7u] << 56));
 }
 
-
-/*
-
- * --------------
- * Decompresses data encoded using Run-Length Encoding (RLE).
- *
- * The input consists of (count, value) byte pairs:
- *   count  number of repetitions
- *   value  byte to repeat
- *
- * Example:
- *   [3, 'A']  "AAA"
- *
- * Parameters:
- *   input          - pointer to compressed data
- *   input_size     - size of compressed data (must be even)
- *   output         - destination buffer (may be NULL if only validating)
- *   expected_size  - expected size after decompression
- *
- * Checks performed:
- *
- * 1. input_size must be even (pairs of count/value)
- * 2. count must not be zero
- * 3. decompressed size must not exceed expected_size
- * 4. final decompressed size must equal expected_size
- *
- * If output is non-NULL, decompressed bytes are written to it.
- *
- * Returns:
- *   BUN_OK if decompression is valid and matches expected size
- *   BUN_MALFORMED otherwise
- *
- * This function ensures RLE data is structurally valid and prevents
- * buffer overflows or incorrect decoding.
- */
-
-bun_result_t decompress_rle(const u8 *input, u64 input_size, u8 *output, u64 expected_size) {
-    u64 out_pos = 0u;
-    u64 i = 0u;
-
-    if ((input_size % 2u) != 0u) {
-        return BUN_MALFORMED;
-    }
-
-    while (i < input_size) {
-        u8 count = input[i];
-        u8 value = input[i + 1u];
-        u64 j;
-
-        if (count == 0u) {
-            return BUN_MALFORMED;
-        }
-        if (out_pos > expected_size || (u64)count > expected_size - out_pos) {
-            return BUN_MALFORMED;
-        }
-
-        for (j = 0u; j < (u64)count; j++) {
-            if (output != NULL) {
-                output[out_pos] = value;
-            }
-            out_pos++;
-        }
-        i += 2u;
-    }
-
-    return out_pos == expected_size ? BUN_OK : BUN_MALFORMED;
-}
 
 
 /*

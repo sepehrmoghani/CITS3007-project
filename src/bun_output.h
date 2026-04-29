@@ -38,13 +38,6 @@ bool bun_is_printable_ascii(const unsigned char *buf, size_t len);
 
 
 /**
- * Return true iff every byte in `buf[0..len)` is in the BUN-name range
- * (0x20-0x7E inclusive) AND len > 0. This matches BUN spec section 5.
- */
-bool bun_name_is_printable(const unsigned char *buf, size_t len);
-
-
-/**
  * Write up to `max_len` characters of `buf` to `out`, escaping any byte that
  * is not a printable ASCII character as `\xHH`. Always safe to call even if
  * buf contains NULs. Returns the number of *source* bytes consumed (always
