@@ -333,14 +333,14 @@ Issue - [#10](https://github.com/sepehrmoghani/CITS3007-project/issues/10)
 - Findings
   - Variable scope warnings -
       These variables are declared earlier than needed in the files
-    - bun_output.c - `decoded` scope can be reduced
-    - bun_validate.c - `bytes_read` scope can be reduced
+    - bun_output.c -`decoded` scope can be reduced
+    - bun_validate.c -`bytes_read` scope can be reduced
 
 - Unused function warnings -
 These functions are defined but never called internally.
-    - bun_output.c - `bun_name_is_printable` is never used
-    - bun_utils.c - `bun_ranges_disjoint` is never used  
-    - bun_utils.c - `decompress_rle` is never used
+    - bun_output.c -`bun_name_is_printable` is never used
+    - bun_utils.c -`bun_ranges_disjoint` is never used  
+    - bun_utils.c -`decompress_rle` is never used
 
 Screenshot of Issues found:
 
@@ -694,6 +694,6 @@ To address this, we ran a large array of different tools to find as many issues 
 
 ## 8. GenAI usage statement
 
-Generative AI was used to assist with report drafting as well as in improving code stucture, validation and safety of functions in all code files. All final content was reviewed and edited by group members. 
+Generative AI was used to assist with report drafting as well as in improving code stucture, validation and safety of functions in all code files. All final content was reviewed and approved by group members using Github Pull Requests. 
 
 ---
