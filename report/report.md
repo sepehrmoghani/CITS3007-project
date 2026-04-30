@@ -28,10 +28,10 @@ Build to PDF (requires pandoc + a TeX toolchain):
     pandoc report/report.md -o report/report.pdf --pdf-engine=xelatex
 
 Submission checklist:
-  [ ] group number, names, student numbers, github usernames all filled
-  [ ] all TODO markers in this document resolved
-  [ ] every "Tools used" entry has a concrete issue+commit link
-  [ ] report/report.pdf committed (but NOT the .md if anything embarrassing)
+  [x] group number, names, student numbers, github usernames all filled
+  [x] all TODO markers in this document resolved
+  [x] every "Tools used" entry has a concrete issue+commit link (N/A where no issues found)
+  [ ] report/report.pdf committed (requires pandoc + xelatex to build)
 -->
 
 # CITS3007 Secure Coding Phase 1 Report
@@ -371,10 +371,6 @@ Issue - N/A
   - No use-after-free or invalid pointer dereferencing was detected.
   - No undefined behaviour (e.g. signed integer overflow, invalid shifts) was reported.
 
-Screenshot of Results:
-
-![](asan.png)
-
 Fix Commits - N/A
 
 ### 4.3 `gcc -fanalyzer`
@@ -394,13 +390,7 @@ Issue - N/A
   - No use of uninitialised variables was reported.
   - Control flow analysis did not reveal any issues such as double frees or invalid paths.
 
-Screenshot of Results:
-
-![](fanalyser.png)
-
 Fix Commits - N/A
-
-
 
 ### 4.4 `clang-tidy` / `scan-build`
 
@@ -420,13 +410,7 @@ Issue - N/A
   - No insecure API usage or undefined behaviour risks were identified.
   - Code passed all checks under Clang’s static analyzer.
 
-Screenshot of Results:
-
-![](scan-build.png)
-
 Fix Commits - N/A
-
-
 
 ### 4.5 Fuzzing
 
@@ -447,11 +431,6 @@ Issue - N/A
   - No hangs or infinite loops were detected.
   - No inputs triggered undefined behaviour or sanitizer failures.
   - Parser handled malformed and random inputs robustly.
-
-Screenshots of Results:
-
-![](fuzzing.png)
-![](fuzzing2.png)
 
 Fix Commits - N/A
 
