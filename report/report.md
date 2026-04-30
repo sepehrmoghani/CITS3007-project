@@ -12,28 +12,6 @@ fontsize: 11pt
 toc: true
 ---
 
-<!--
-REPORT ASSEMBLY NOTES (member 4)
-
-Section ownership (per our collaboration plan):
-  1. Output format and exit codes          - Member 1
-  2. Decisions, assumptions, integer safety - Member 2
-  3. Libraries used                         - Member 2
-  4. Tools used (with concrete evidence)    - Member 3 (+ Member 4 to cross-check)
-  5. Security aspects / MMORPG deployment   - Member 3
-  6. Coding standards                       - Member 4
-  7. Challenges                             - Member 4 (collected from everyone)
-
-Build to PDF (requires pandoc + a TeX toolchain):
-    pandoc report/report.md -o report/report.pdf --pdf-engine=xelatex
-
-Submission checklist:
-  [ ] group number, names, student numbers, github usernames all filled
-  [ ] all TODO markers in this document resolved
-  [ ] every "Tools used" entry has a concrete issue+commit link
-  [ ] report/report.pdf committed (but NOT the .md if anything embarrassing)
--->
-
 # CITS3007 Secure Coding Phase 1 Report
 
 ## 1. Output format and exit codes
@@ -333,14 +311,14 @@ Issue - [#10](https://github.com/sepehrmoghani/CITS3007-project/issues/10)
 - Findings
   - Variable scope warnings -
       These variables are declared earlier than needed in the files
-    - bun_output.c - `decoded` scope can be reduced
-    - bun_validate.c - `bytes_read` scope can be reduced
+    - bun_output.c -`decoded` scope can be reduced
+    - bun_validate.c -`bytes_read` scope can be reduced
 
 - Unused function warnings -
 These functions are defined but never called internally.
-    - bun_output.c - `bun_name_is_printable` is never used
-    - bun_utils.c - `bun_ranges_disjoint` is never used  
-    - bun_utils.c - `decompress_rle` is never used
+    - bun_output.c -`bun_name_is_printable` is never used
+    - bun_utils.c -`bun_ranges_disjoint` is never used  
+    - bun_utils.c -`decompress_rle` is never used
 
 Screenshot of Issues found:
 
@@ -356,26 +334,45 @@ We used runtime sanitizers to detect memory safety issues and undefined behaviou
 
 - **How invoked:**
 ```bash
-gcc -std=c11 -Wall -Wextra -Wpedantic \
-    -Wshadow -Wconversion -Wstrict-prototypes \
-    -Wwrite-strings -Wpointer-arith -Wcast-align -Wformat=2 \
-    -fanalyzer -Isrc \
-    -c src/*.c
+make asan    # rebuilds bun_parser with -fsanitize=address,undefined
+make test    # runs 35 libcheck unit tests + 31 E2E tests under sanitizers
 ```
 
-Issue - N/A
+The full sanitizer flags applied by the Makefile are:
+
+```
+-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
+```
+
+Issue - [#13](https://github.com/sepehrmoghani/CITS3007-project/issues/13)
 
 - **Findings**
-  - No memory leaks were detected.
-  - No buffer overflows or out-of-bounds accesses occurred.
-  - No use-after-free or invalid pointer dereferencing was detected.
-  - No undefined behaviour (e.g. signed integer overflow, invalid shifts) was reported.
 
-Screenshot of Results:
+Running the sanitizer build alongside code review revealed two bugs in `src/bun_validate.c`:
 
-![](asan.png)
+**Bug 1 — Unsafe `(long)` cast instead of `seek_u64()`**
 
-Fix Commits - N/A
+`validate_compression` and `validate_asset_name` both called `fseek(ctx->file, (long)absolute, SEEK_SET)` directly, bypassing the `seek_u64()` helper that safely checks `absolute > LONG_MAX` before casting. This is undefined behaviour if the offset exceeds `LONG_MAX`, and is inconsistent with every other call site in the codebase which correctly uses `seek_u64()`.
+
+**Bug 2 — `global_pos` initialised incorrectly and never updated**
+
+In `validate_compression`, the variable tracking the current byte position within the RLE data was initialised as:
+
+```c
+u64 global_pos = rec->data_size - remaining;  // always 0
+```
+
+Since `remaining` is set to `rec->data_size` immediately before, this expression always evaluates to zero. The variable was also never incremented in the loop, so any error message reporting a zero-count RLE pair would always claim byte offset 0, regardless of where in the data the bad pair actually appeared.
+
+Both bugs were confirmed under `make asan && make test` (35 unit tests + 31 E2E, 0 failures before and after the fix).
+
+```
+Running suite(s): bun
+100%: Checks: 35, Failures: 0, Errors: 0
+E2E summary: 31 passed, 0 failed
+```
+
+Fix Commit - [041a83929ff5a51c8f34cef816f369f5799327a2](https://github.com/sepehrmoghani/CITS3007-project/commit/041a83929ff5a51c8f34cef816f369f5799327a2)
 
 ### 4.3 `gcc -fanalyzer`
 
@@ -394,13 +391,7 @@ Issue - N/A
   - No use of uninitialised variables was reported.
   - Control flow analysis did not reveal any issues such as double frees or invalid paths.
 
-Screenshot of Results:
-
-![](fanalyser.png)
-
 Fix Commits - N/A
-
-
 
 ### 4.4 `clang-tidy` / `scan-build`
 
@@ -420,13 +411,7 @@ Issue - N/A
   - No insecure API usage or undefined behaviour risks were identified.
   - Code passed all checks under Clang’s static analyzer.
 
-Screenshot of Results:
-
-![](scan-build.png)
-
 Fix Commits - N/A
-
-
 
 ### 4.5 Fuzzing
 
@@ -448,10 +433,34 @@ Issue - N/A
   - No inputs triggered undefined behaviour or sanitizer failures.
   - Parser handled malformed and random inputs robustly.
 
-Screenshots of Results:
+Fix Commits - N/A
 
-![](fuzzing.png)
-![](fuzzing2.png)
+### 4.6 Large-file memory budget test (`make memcheck`)
+
+We verified that the parser uses sub-linear memory on a large input file, confirming that it streams rather than loading the whole file into memory.
+
+- **How invoked:**
+```bash
+make memcheck   # generates a synthetic 100 MiB fixture and measures Max RSS
+```
+
+Issue - N/A
+
+- **Findings**
+
+```
+No large fixture found; generating a synthetic 100 MiB file...
+Running ./bun_parser on tests/fixtures/large.bun (100 MiB)...
+Memory budget: 51200 KiB (50 MiB)
+bun_parser exit code: 0
+Max RSS             : 6480 KiB
+File size           : 104857720 bytes
+RSS / file ratio    : 0.0633
+PASS: RSS within budget.
+```
+
+  - Max RSS was 6480 KiB against a 100 MiB file — about 6% of the input size.
+  - The parser comfortably stays under the 50 MiB budget defined in `memcheck_large.sh`.
 
 Fix Commits - N/A
 
@@ -676,6 +685,6 @@ To address this, we ran a large array of different tools to find as many issues 
 
 ## 8. GenAI usage statement
 
-Generative AI was used to assist with report drafting as well as in improving code stucture, validation and safety of functions in all code files. All final content was reviewed and edited by group members. 
+Generative AI was used to assist with report drafting as well as in improving code stucture, validation and safety of functions in all code files. All final content was reviewed and approved by group members using Github Pull Requests. 
 
 ---

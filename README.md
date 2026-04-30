@@ -9,12 +9,10 @@ Repository: <https://github.com/sepehrmoghani/CITS3007-project>
 
 | Role (primary)                | Name | Student # | GitHub |
 |-------------------------------|------|-----------|--------|
-| Member 1 - File structure     | _TBD_ | _TBD_   | _TBD_  |
-| Member 2 - Asset parsing      | _TBD_ | _TBD_   | _TBD_  |
-| Member 3 - Compression/sec.   | _TBD_ | _TBD_   | _TBD_  |
-| Member 4 - Testing + report   | Sepehr Moghani | 23642415 | `sepehrmoghani` |
-
-(Replace the `_TBD_` cells before submission.)
+| Member 1 - File structure     | Rayan Ramaprasad | 24227537 | `24227537` |
+| Member 2 - Asset parsing      | Abinandh Radhakrishnan | 23689813 | `abxsnxper` |
+| Member 3 - Compression/sec.   | Campbell Henderson | 24278297 | `phyric1` |
+| Member 4 - Testing + report   | Sepehr Moghani Pilehroud | 23642415 | `sepehrmoghani` |
 
 ## Building
 
