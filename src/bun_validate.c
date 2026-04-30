@@ -169,7 +169,7 @@ bun_result_t validate_asset_name(BunParseContext *ctx, const BunHeader *header, 
         return bun_context_result(ctx);
     }
 
-    if (fseek(ctx->file, (long)absolute, SEEK_SET) != 0) {
+    if (seek_u64(ctx->file, absolute) != 0) {
         add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " name seek failed", index);
         return bun_context_result(ctx);
     }
@@ -229,7 +229,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
         return bun_context_result(ctx);
     }
 
-    if (fseek(ctx->file, (long)absolute, SEEK_SET) != 0) {
+    if (seek_u64(ctx->file, absolute) != 0) {
         add_error(ctx, BUN_MALFORMED, "asset %" PRIu32 " RLE data seek failed", index);
         return bun_context_result(ctx);
     }
@@ -237,7 +237,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
     uint8_t buffer[4096];
 
     size_t remaining = rec->data_size;
-    u64 global_pos = rec->data_size - remaining;
+    u64 global_pos = 0u;
 
     while (remaining > 0) {
         size_t to_read = sizeof(buffer);
@@ -263,7 +263,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
             if (count == 0) {
                 add_error(ctx, BUN_MALFORMED,
                           "asset %" PRIu32 " RLE pair at byte %" PRIu64 " has zero count",
-                          index, global_pos + i);
+                          index, global_pos + (u64)i);
                 return bun_context_result(ctx);
             }
 
@@ -275,6 +275,7 @@ bun_result_t validate_compression(BunParseContext *ctx, const BunHeader *header,
             }
         }
 
+        global_pos += (u64)bytes_read;
         remaining -= bytes_read;
     }
 
