@@ -391,6 +391,10 @@ Issue - N/A
   - No use of uninitialised variables was reported.
   - Control flow analysis did not reveal any issues such as double frees or invalid paths.
 
+Screenshot:
+
+![](fanalyser.png)
+
 Fix Commits - N/A
 
 ### 4.4 `clang-tidy` / `scan-build`
@@ -410,6 +414,10 @@ Issue - N/A
   - No dead stores or unused value issues were flagged.
   - No insecure API usage or undefined behaviour risks were identified.
   - Code passed all checks under Clang’s static analyzer.
+
+Screenshot:
+
+![](scan-build.png)
 
 Fix Commits - N/A
 
@@ -432,6 +440,11 @@ Issue - N/A
   - No hangs or infinite loops were detected.
   - No inputs triggered undefined behaviour or sanitizer failures.
   - Parser handled malformed and random inputs robustly.
+
+Screenshots:
+
+![](fuzzing.png)
+![](fuzzing2.png)
 
 Fix Commits - N/A
 
