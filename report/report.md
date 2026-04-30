@@ -12,28 +12,6 @@ fontsize: 11pt
 toc: true
 ---
 
-<!--
-REPORT ASSEMBLY NOTES (member 4)
-
-Section ownership (per our collaboration plan):
-  1. Output format and exit codes          - Member 1
-  2. Decisions, assumptions, integer safety - Member 2
-  3. Libraries used                         - Member 2
-  4. Tools used (with concrete evidence)    - Member 3 (+ Member 4 to cross-check)
-  5. Security aspects / MMORPG deployment   - Member 3
-  6. Coding standards                       - Member 4
-  7. Challenges                             - Member 4 (collected from everyone)
-
-Build to PDF (requires pandoc + a TeX toolchain):
-    pandoc report/report.md -o report/report.pdf --pdf-engine=xelatex
-
-Submission checklist:
-  [x] group number, names, student numbers, github usernames all filled
-  [x] all TODO markers in this document resolved
-  [x] every "Tools used" entry has a concrete issue+commit link (N/A where no issues found)
-  [ ] report/report.pdf committed (requires pandoc + xelatex to build)
--->
-
 # CITS3007 Secure Coding Phase 1 Report
 
 ## 1. Output format and exit codes
