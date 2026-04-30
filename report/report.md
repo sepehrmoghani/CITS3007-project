@@ -344,9 +344,27 @@ The full sanitizer flags applied by the Makefile are:
 -fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
 ```
 
-Issue - N/A
+Issue - [#13](https://github.com/sepehrmoghani/CITS3007-project/issues/13)
 
 - **Findings**
+
+Running the sanitizer build alongside code review revealed two bugs in `src/bun_validate.c`:
+
+**Bug 1 — Unsafe `(long)` cast instead of `seek_u64()`**
+
+`validate_compression` and `validate_asset_name` both called `fseek(ctx->file, (long)absolute, SEEK_SET)` directly, bypassing the `seek_u64()` helper that safely checks `absolute > LONG_MAX` before casting. This is undefined behaviour if the offset exceeds `LONG_MAX`, and is inconsistent with every other call site in the codebase which correctly uses `seek_u64()`.
+
+**Bug 2 — `global_pos` initialised incorrectly and never updated**
+
+In `validate_compression`, the variable tracking the current byte position within the RLE data was initialised as:
+
+```c
+u64 global_pos = rec->data_size - remaining;  // always 0
+```
+
+Since `remaining` is set to `rec->data_size` immediately before, this expression always evaluates to zero. The variable was also never incremented in the loop, so any error message reporting a zero-count RLE pair would always claim byte offset 0, regardless of where in the data the bad pair actually appeared.
+
+Both bugs were confirmed under `make asan && make test` (35 unit tests + 31 E2E, 0 failures before and after the fix).
 
 ```
 Running suite(s): bun
@@ -354,12 +372,7 @@ Running suite(s): bun
 E2E summary: 31 passed, 0 failed
 ```
 
-  - No memory leaks were detected.
-  - No buffer overflows or out-of-bounds accesses occurred.
-  - No use-after-free or invalid pointer dereferencing was detected.
-  - No undefined behaviour (e.g. signed integer overflow, invalid shifts) was reported.
-
-Fix Commits - N/A
+Fix Commit - [041a83929ff5a51c8f34cef816f369f5799327a2](https://github.com/sepehrmoghani/CITS3007-project/commit/041a83929ff5a51c8f34cef816f369f5799327a2)
 
 ### 4.3 `gcc -fanalyzer`
 
