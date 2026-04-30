@@ -199,6 +199,24 @@ END_TEST
 // Header parsing - malformed / unsupported
 // -----------------------------------------------------------------------------
 
+START_TEST(test_header_truncated_file_is_malformed) {
+    // Header claims sections beyond EOF; validate_header_offsets catches it.
+    BunParseContext ctx = open_fixture("invalid/03-truncated-file.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_header_asset_count_oversized_is_malformed) {
+    // asset_count=0xFFFFFFFF; asset table extends far beyond EOF.
+    BunParseContext ctx = open_fixture("invalid/07-asset-count-oversized.bun");
+    BunHeader h = {0};
+    ck_assert_int_eq(bun_parse_header(&ctx, &h), BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
 START_TEST(test_header_bad_magic_is_malformed) {
     BunParseContext ctx = open_fixture("invalid/01-bad-magic.bun");
     BunHeader h = {0};
@@ -347,6 +365,46 @@ START_TEST(test_assets_unknown_flag_is_unsupported) {
 }
 END_TEST
 
+START_TEST(test_assets_data_oob_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/09-data-out-of-data-section.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_empty_name_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/11-empty-name.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_rle_size_mismatch_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/14-uncompressed-size-mismatch.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_assets_uncompressed_size_nonzero_is_malformed) {
+    BunParseContext ctx = open_fixture("invalid/15-uncompressed-size-set.bun");
+    BunHeader h = {0};
+    bun_result_t r = bun_parse_header(&ctx, &h);
+    if (r == BUN_OK) r = bun_parse_assets(&ctx, &h);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    bun_close(&ctx);
+}
+END_TEST
+
 // -----------------------------------------------------------------------------
 // I/O path - missing file
 // -----------------------------------------------------------------------------
@@ -385,6 +443,8 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_hdr, test_header_valid_empty);
     tcase_add_test(tc_hdr, test_header_valid_single_uncompressed);
     tcase_add_test(tc_hdr, test_header_valid_reserved_ignored);
+    tcase_add_test(tc_hdr, test_header_truncated_file_is_malformed);
+    tcase_add_test(tc_hdr, test_header_asset_count_oversized_is_malformed);
     tcase_add_test(tc_hdr, test_header_bad_magic_is_malformed);
     tcase_add_test(tc_hdr, test_header_truncated_is_malformed);
     tcase_add_test(tc_hdr, test_header_unaligned_offset_is_malformed);
@@ -398,8 +458,12 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_a, test_assets_overlap_is_malformed);
     tcase_add_test(tc_a, test_assets_name_oob_is_malformed);
     tcase_add_test(tc_a, test_assets_nonprintable_name_is_malformed);
+    tcase_add_test(tc_a, test_assets_data_oob_is_malformed);
+    tcase_add_test(tc_a, test_assets_empty_name_is_malformed);
     tcase_add_test(tc_a, test_assets_rle_odd_is_malformed);
     tcase_add_test(tc_a, test_assets_rle_zero_count_is_malformed);
+    tcase_add_test(tc_a, test_assets_rle_size_mismatch_is_malformed);
+    tcase_add_test(tc_a, test_assets_uncompressed_size_nonzero_is_malformed);
     tcase_add_test(tc_a, test_assets_zlib_is_unsupported);
     tcase_add_test(tc_a, test_assets_checksum_nonzero_is_unsupported);
     tcase_add_test(tc_a, test_assets_unknown_flag_is_unsupported);

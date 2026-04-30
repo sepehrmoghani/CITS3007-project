@@ -356,16 +356,26 @@ We used runtime sanitizers to detect memory safety issues and undefined behaviou
 
 - **How invoked:**
 ```bash
-gcc -std=c11 -Wall -Wextra -Wpedantic \
-    -Wshadow -Wconversion -Wstrict-prototypes \
-    -Wwrite-strings -Wpointer-arith -Wcast-align -Wformat=2 \
-    -fanalyzer -Isrc \
-    -c src/*.c
+make asan    # rebuilds bun_parser with -fsanitize=address,undefined
+make test    # runs 35 libcheck unit tests + 31 E2E tests under sanitizers
+```
+
+The full sanitizer flags applied by the Makefile are:
+
+```
+-fsanitize=address,undefined -fno-omit-frame-pointer -g -O1
 ```
 
 Issue - N/A
 
 - **Findings**
+
+```
+Running suite(s): bun
+100%: Checks: 35, Failures: 0, Errors: 0
+E2E summary: 31 passed, 0 failed
+```
+
   - No memory leaks were detected.
   - No buffer overflows or out-of-bounds accesses occurred.
   - No use-after-free or invalid pointer dereferencing was detected.
@@ -431,6 +441,35 @@ Issue - N/A
   - No hangs or infinite loops were detected.
   - No inputs triggered undefined behaviour or sanitizer failures.
   - Parser handled malformed and random inputs robustly.
+
+Fix Commits - N/A
+
+### 4.6 Large-file memory budget test (`make memcheck`)
+
+We verified that the parser uses sub-linear memory on a large input file, confirming that it streams rather than loading the whole file into memory.
+
+- **How invoked:**
+```bash
+make memcheck   # generates a synthetic 100 MiB fixture and measures Max RSS
+```
+
+Issue - N/A
+
+- **Findings**
+
+```
+No large fixture found; generating a synthetic 100 MiB file...
+Running ./bun_parser on tests/fixtures/large.bun (100 MiB)...
+Memory budget: 51200 KiB (50 MiB)
+bun_parser exit code: 0
+Max RSS             : 6480 KiB
+File size           : 104857720 bytes
+RSS / file ratio    : 0.0633
+PASS: RSS within budget.
+```
+
+  - Max RSS was 6480 KiB against a 100 MiB file — about 6% of the input size.
+  - The parser comfortably stays under the 50 MiB budget defined in `memcheck_large.sh`.
 
 Fix Commits - N/A
 
